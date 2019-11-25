@@ -1,5 +1,6 @@
 # <img src="https://spicesharp.github.io/SpiceSharp/api/images/logo_full.svg" width="45px" /> Spice#/SpiceSharpParser
  [<img src="https://img.shields.io/nuget/vpre/SpiceSharp-Parser.svg">]( https://www.nuget.org/packages/SpiceSharp-Parser)
+[![Codacy Badge](https://api.codacy.com/project/badge/Grade/b6f143fb7c064768b6c95837c1817c59)](https://app.codacy.com/app/marcin-golebiowski/SpiceSharpParser?utm_source=github.com&utm_medium=referral&utm_content=marcin-golebiowski/SpiceSharpParser&utm_campaign=Badge_Grade_Dashboard)
 [![Windows](https://ci.appveyor.com/api/projects/status/d8tpj2hm3hcullmw/branch/master?svg=true)](https://ci.appveyor.com/project/marcin-golebiowski/spicesharpparser/branch/master)
 [![Linux](https://travis-ci.org/SpiceSharp/SpiceSharpParser.svg?branch=master)](https://travis-ci.org/SpiceSharp/SpiceSharpParser?branch=master)
 [![codecov](https://codecov.io/gh/SpiceSharp/SpiceSharpParser/branch/master/graph/badge.svg)](https://codecov.io/gh/SpiceSharp/SpiceSharpParser)
