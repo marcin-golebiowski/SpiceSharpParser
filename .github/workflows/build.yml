@@ -44,6 +44,8 @@ jobs:
         run: |
           .\.sonar\scanner\dotnet-sonarscanner begin /k:"marcin-golebiowski_SpiceSharpParser" /o:"marcin-golebiowski" /d:sonar.login="${{ secrets.SONAR_TOKEN }}" /d:sonar.host.url="https://sonarcloud.io"
           cd src
-          dotnet build
+          dotnet restore
+          dotnet build --no-restore
+          dotnet test --no-build --verbosity normal
           cd ..
           .\.sonar\scanner\dotnet-sonarscanner end /d:sonar.login="${{ secrets.SONAR_TOKEN }}"
