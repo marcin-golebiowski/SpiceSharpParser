@@ -1,12 +1,12 @@
 ﻿using System.Collections.Generic;
+using System.Linq;
 using SpiceSharp.Components;
-using SpiceSharpParser.Common;
+using SpiceSharp.Entities;
+using SpiceSharpParser.Common.Validation;
 using SpiceSharpParser.ModelReaders.Netlist.Spice.Context;
-using SpiceSharpParser.ModelReaders.Netlist.Spice.Exceptions;
 using SpiceSharpParser.Models.Netlist.Spice.Objects;
 using SpiceSharpParser.Models.Netlist.Spice.Objects.Parameters;
-using System.Linq;
-using Component = SpiceSharp.Components.Component;
+using SpiceSharpParser.Parsers.Expression;
 
 namespace SpiceSharpParser.ModelReaders.Netlist.Spice.Readers.EntityGenerators.Components.Sources
 {
@@ -15,7 +15,7 @@ namespace SpiceSharpParser.ModelReaders.Netlist.Spice.Readers.EntityGenerators.C
     /// </summary>
     public class CurrentSourceGenerator : SourceGenerator
     {
-        public override Component Generate(string componentIdentifier, string originalName, string type, ParameterCollection parameters, ICircuitContext context)
+        public override IEntity Generate(string componentIdentifier, string originalName, string type, ParameterCollection parameters, ICircuitContext context)
         {
             switch (type.ToLower())
             {
@@ -36,7 +36,7 @@ namespace SpiceSharpParser.ModelReaders.Netlist.Spice.Readers.EntityGenerators.C
         /// <returns>
         /// A new instance of current controlled current source.
         /// </returns>
-        protected Component GenerateCurrentControlledCurrentSource(string name, ParameterCollection parameters, ICircuitContext context)
+        protected IEntity GenerateCurrentControlledCurrentSource(string name, ParameterCollection parameters, ICircuitContext context)
         {
             if (parameters.Count == 4
                 && parameters.IsValueString(0)
@@ -46,7 +46,7 @@ namespace SpiceSharpParser.ModelReaders.Netlist.Spice.Readers.EntityGenerators.C
             {
                 var cccs = new CurrentControlledCurrentSource(name);
                 context.CreateNodes(cccs, parameters);
-                cccs.ControllingName = context.NameGenerator.GenerateObjectName(parameters.Get(2).Image);
+                cccs.ControllingSource = context.NameGenerator.GenerateObjectName(parameters.Get(2).Image);
                 context.SetParameter(cccs, "gain", parameters.Get(3));
                 return cccs;
             }
@@ -65,7 +65,7 @@ namespace SpiceSharpParser.ModelReaders.Netlist.Spice.Readers.EntityGenerators.C
         /// <returns>
         /// A new instance of voltage controlled current source.
         /// </returns>
-        protected Component GenerateVoltageControlledCurrentSource(string name, ParameterCollection parameters, ICircuitContext context)
+        protected IEntity GenerateVoltageControlledCurrentSource(string name, ParameterCollection parameters, ICircuitContext context)
         {
             if (parameters.Count == 5
                 && parameters.IsValueString(0)
@@ -112,15 +112,15 @@ namespace SpiceSharpParser.ModelReaders.Netlist.Spice.Readers.EntityGenerators.C
         /// <returns>
         /// A new instance of current source.
         /// </returns>
-        protected Component GenerateCurrentSource(string name, ParameterCollection parameters, ICircuitContext context)
+        protected IEntity GenerateCurrentSource(string name, ParameterCollection parameters, ICircuitContext context)
         {
             CurrentSource cs = new CurrentSource(name);
             context.CreateNodes(cs, parameters);
-            SetSourceParameters(name, parameters, context, cs);
+            SetSourceParameters(parameters, context, cs);
             return cs;
         }
 
-        private Component CreateCustomCurrentSource(string name, ParameterCollection parameters, ICircuitContext context, bool isVoltageControlled)
+        private IEntity CreateCustomCurrentSource(string name, ParameterCollection parameters, ICircuitContext context, bool isVoltageControlled)
         {
             if (parameters.Any(p => p is AssignmentParameter ap && ap.Name.ToLower() == "value"))
             {
@@ -128,11 +128,12 @@ namespace SpiceSharpParser.ModelReaders.Netlist.Spice.Readers.EntityGenerators.C
 
                 var entity = new BehavioralCurrentSource(name);
                 context.CreateNodes(entity, parameters);
-
-                var baseParameters = entity.ParameterSets.Get<SpiceSharpBehavioral.Components.BehavioralBehaviors.BaseParameters>();
-                baseParameters.Expression = valueParameter.Value;
-                baseParameters.SpicePropertyComparer = StringComparerProvider.Get(context.CaseSensitivity.IsFunctionNameCaseSensitive);
-                baseParameters.Parser = (sim) => CreateParser(context, sim);
+                entity.Parameters.Expression = valueParameter.Value;
+                entity.Parameters.ParseAction = (expression) =>
+                {
+                    var parser = new ExpressionParser(context.Evaluator.GetEvaluationContext(null), false, context.CaseSensitivity);
+                    return parser.Resolve(expression);
+                };
                 return entity;
             }
 
@@ -143,11 +144,12 @@ namespace SpiceSharpParser.ModelReaders.Netlist.Spice.Readers.EntityGenerators.C
                 {
                     var entity = new BehavioralCurrentSource(name);
                     context.CreateNodes(entity, parameters);
-
-                    var baseParameters = entity.ParameterSets.Get<SpiceSharpBehavioral.Components.BehavioralBehaviors.BaseParameters>();
-                    baseParameters.Expression = expressionParameter.Image;
-                    baseParameters.SpicePropertyComparer = StringComparerProvider.Get(context.CaseSensitivity.IsFunctionNameCaseSensitive);
-                    baseParameters.Parser = (sim) => CreateParser(context, sim);
+                    entity.Parameters.Expression = expressionParameter.Image;
+                    entity.Parameters.ParseAction = (expression) =>
+                    {
+                        var parser = new ExpressionParser(context.Evaluator.GetEvaluationContext(null), false, context.CaseSensitivity);
+                        return parser.Resolve(expression);
+                    };
                     return entity;
                 }
             }
@@ -156,7 +158,7 @@ namespace SpiceSharpParser.ModelReaders.Netlist.Spice.Readers.EntityGenerators.C
             {
                 var entity = new CurrentSource(name);
                 context.CreateNodes(entity, parameters);
-                parameters = parameters.Skip(CurrentSource.CurrentSourcePinCount);
+                parameters = parameters.Skip(CurrentSource.PinCount);
                 var dimension = 1;
                 var expression = CreatePolyExpression(dimension, parameters.Skip(1), isVoltageControlled, context.Evaluator.GetEvaluationContext());
                 context.SetParameter(entity, "dc", expression);
@@ -167,13 +169,14 @@ namespace SpiceSharpParser.ModelReaders.Netlist.Spice.Readers.EntityGenerators.C
             {
                 var entity = new CurrentSource(name);
                 context.CreateNodes(entity, parameters);
-                parameters = parameters.Skip(CurrentSource.CurrentSourcePinCount);
+                parameters = parameters.Skip(CurrentSource.PinCount);
 
                 var polyParameter = (BracketParameter)parameters.Single(p => p is BracketParameter bp && bp.Name.ToLower() == "poly");
 
                 if (polyParameter.Parameters.Count != 1)
                 {
-                    throw new WrongParametersCountException("poly expects one argument => dimension", polyParameter.LineInfo);
+                    context.Result.Validation.Add(new ValidationEntry(ValidationEntrySource.Reader, ValidationEntryLevel.Warning, "poly expects one argument => dimension", polyParameter.LineInfo));
+                    return null;
                 }
 
                 var dimension = (int)context.Evaluator.EvaluateDouble(polyParameter.Parameters[0].Image);
@@ -189,7 +192,8 @@ namespace SpiceSharpParser.ModelReaders.Netlist.Spice.Readers.EntityGenerators.C
                 int tableParameterPosition = parameters.IndexOf(tableParameter);
                 if (tableParameterPosition == parameters.Count - 1)
                 {
-                    throw new WrongParametersCountException("table expects expression parameter", tableParameter.LineInfo);
+                    context.Result.Validation.Add(new ValidationEntry(ValidationEntrySource.Reader, ValidationEntryLevel.Warning, "table expects expression parameter", tableParameter.LineInfo));
+                    return null;
                 }
 
                 var nextParameter = parameters[tableParameterPosition + 1];
@@ -198,16 +202,19 @@ namespace SpiceSharpParser.ModelReaders.Netlist.Spice.Readers.EntityGenerators.C
                 {
                     var entity = new BehavioralCurrentSource(name);
                     context.CreateNodes(entity, parameters);
+                    entity.Parameters.Expression = ExpressionFactory.CreateTableExpression(eep.Expression, eep.Points);
+                    entity.Parameters.ParseAction = (expression) =>
+                    {
+                        var parser = new ExpressionParser(context.Evaluator.GetEvaluationContext(null), false, context.CaseSensitivity);
+                        return parser.Resolve(expression);
+                    };
 
-                    var baseParameters = entity.ParameterSets.Get<SpiceSharpBehavioral.Components.BehavioralBehaviors.BaseParameters>();
-                    baseParameters.Expression = ExpressionFactory.CreateTableExpression(eep.Expression, eep.Points);
-                    baseParameters.SpicePropertyComparer = StringComparerProvider.Get(context.CaseSensitivity.IsFunctionNameCaseSensitive);
-                    baseParameters.Parser = (sim) => CreateParser(context, sim);
                     return entity;
                 }
                 else
                 {
-                    throw new WrongParameterTypeException("table expects expression equal parameter", tableParameter.LineInfo);
+                    context.Result.Validation.Add(new ValidationEntry(ValidationEntrySource.Reader, ValidationEntryLevel.Warning, "table expects equal parameter", tableParameter.LineInfo));
+                    return null;
                 }
             }
 

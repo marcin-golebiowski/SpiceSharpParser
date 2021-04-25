@@ -1,16 +1,16 @@
-﻿using SpiceSharp.Circuits;
+﻿using System;
+using System.Collections.Generic;
+using System.Linq;
+using SpiceSharp.Entities;
+using SpiceSharp.Simulations;
 using SpiceSharpParser.Common;
-using SpiceSharpParser.Common.Evaluation;
+using SpiceSharpParser.Common.Validation;
 using SpiceSharpParser.ModelReaders.Netlist.Spice.Context.Models;
-using SpiceSharpParser.ModelReaders.Netlist.Spice.Exceptions;
 using SpiceSharpParser.ModelReaders.Netlist.Spice.Mappings;
 using SpiceSharpParser.ModelReaders.Netlist.Spice.Readers;
 using SpiceSharpParser.ModelReaders.Netlist.Spice.Readers.Controls.Exporters;
 using SpiceSharpParser.Models.Netlist.Spice.Objects;
 using SpiceSharpParser.Models.Netlist.Spice.Objects.Parameters;
-using System;
-using System.Collections.Generic;
-using System.Linq;
 
 namespace SpiceSharpParser.ModelReaders.Netlist.Spice.Context
 {
@@ -45,8 +45,7 @@ namespace SpiceSharpParser.ModelReaders.Netlist.Spice.Context
             IWaveformReader waveformReader,
             ISpiceNetlistCaseSensitivitySettings caseSettings,
             IMapper<Exporter> exporters,
-            string workingDirectory,
-            InstanceData instanceData)
+            string workingDirectory)
         {
             Name = contextName ?? throw new ArgumentNullException(nameof(contextName));
             Evaluator = evaluator;
@@ -62,18 +61,12 @@ namespace SpiceSharpParser.ModelReaders.Netlist.Spice.Context
             ModelsRegistry = CreateModelsRegistry();
             Exporters = exporters;
             WorkingDirectory = workingDirectory;
-            InstanceData = instanceData;
         }
 
         /// <summary>
         /// Gets the working directory.
         /// </summary>
         public string WorkingDirectory { get; }
-
-        /// <summary>
-        /// Gets instance data.
-        /// </summary>
-        public InstanceData InstanceData { get; }
 
         /// <summary>
         /// Gets the name of context.
@@ -166,7 +159,7 @@ namespace SpiceSharpParser.ModelReaders.Netlist.Spice.Context
         /// </summary>
         /// <param name="component">A component.</param>
         /// <param name="parameters">Parameters of component.</param>
-        public void CreateNodes(SpiceSharp.Components.Component component, ParameterCollection parameters)
+        public void CreateNodes(SpiceSharp.Components.IComponent component, ParameterCollection parameters)
         {
             if (component == null)
             {
@@ -178,13 +171,13 @@ namespace SpiceSharpParser.ModelReaders.Netlist.Spice.Context
                 throw new ArgumentNullException(nameof(parameters));
             }
 
-            if (parameters.Count < component.PinCount)
+            if (parameters.Count < component.Nodes.Count)
             {
-                throw new WrongParametersCountException($"Too few parameters for: {component.Name} to create nodes", parameters.LineInfo);
+                throw new SpiceSharpParserException($"Too few parameters for: {component.Name} to create nodes", parameters.LineInfo);
             }
 
-            string[] nodes = new string[component.PinCount];
-            for (var i = 0; i < component.PinCount; i++)
+            string[] nodes = new string[component.Nodes.Count];
+            for (var i = 0; i < component.Nodes.Count; i++)
             {
                 string pinName = parameters.Get(i).Image;
                 nodes[i] = NameGenerator.GenerateNodeName(pinName);
@@ -212,7 +205,7 @@ namespace SpiceSharpParser.ModelReaders.Netlist.Spice.Context
             }
         }
 
-        public void SetParameter(Entity entity, string parameterName, string expression, bool beforeTemperature = true, bool onload = true)
+        public void SetParameter(IEntity entity, string parameterName, string expression, bool beforeTemperature = true, bool onload = true, Simulation simulation = null)
         {
             if (entity == null)
             {
@@ -229,13 +222,11 @@ namespace SpiceSharpParser.ModelReaders.Netlist.Spice.Context
                 throw new ArgumentNullException(nameof(expression));
             }
 
-            IEqualityComparer<string> comparer = StringComparerProvider.Get(CaseSensitivity.IsEntityParameterNameCaseSensitive);
-
-            double value = Evaluator.EvaluateDouble(expression);
+            double value = Evaluator.EvaluateDouble(expression, simulation);
 
             try
             {
-                entity.SetParameter(parameterName, value, comparer);
+                entity.SetParameter(parameterName, value);
                 var context = Evaluator.GetEvaluationContext();
 
                 bool isDynamic = context.HaveSpiceProperties(expression)
@@ -249,11 +240,16 @@ namespace SpiceSharpParser.ModelReaders.Netlist.Spice.Context
             }
             catch (Exception e)
             {
-                throw new InvalidParameterException($"Problem with setting parameter = {parameterName} with value = {value}", null);
+                Result.Validation.Add(
+                    new ValidationEntry(
+                        ValidationEntrySource.Reader,
+                        ValidationEntryLevel.Warning,
+                        $"Problem with setting parameter = {parameterName} with value = {value}",
+                        exception: e));
             }
         }
 
-        public void SetParameter(Entity entity, string parameterName, Parameter parameter, bool beforeTemperature = true, bool onload = true)
+        public void SetParameter(IEntity entity, string parameterName, Parameter parameter, bool beforeTemperature = true, bool onload = true)
         {
             if (entity == null)
             {
@@ -282,13 +278,11 @@ namespace SpiceSharpParser.ModelReaders.Netlist.Spice.Context
                 expression = asg.Value;
             }
 
-            IEqualityComparer<string> comparer = StringComparerProvider.Get(CaseSensitivity.IsEntityParameterNameCaseSensitive);
-
             try
             {
                 double value = Evaluator.EvaluateDouble(expression);
 
-                entity.SetParameter(parameterName, value, comparer);
+                entity.SetParameter(parameterName, value);
 
                 var context = Evaluator.GetEvaluationContext();
 
@@ -302,7 +296,12 @@ namespace SpiceSharpParser.ModelReaders.Netlist.Spice.Context
             }
             catch (Exception ex)
             {
-                throw new ReadingException($"Exception during evaluation of parameter with expression: `{expression}`", ex, parameter.LineInfo);
+                Result.Validation.Add(
+                    new ValidationEntry(
+                        ValidationEntrySource.Reader,
+                        ValidationEntryLevel.Warning,
+                        $"Exception during evaluation of parameter with expression: `{expression}`: {ex}",
+                        parameter.LineInfo));
             }
         }
 
@@ -336,7 +335,7 @@ namespace SpiceSharpParser.ModelReaders.Netlist.Spice.Context
             {
                 var generators = new List<INameGenerator>();
                 generators.Add(NameGenerator);
-                return new StochasticModelsRegistry(generators, CaseSensitivity.IsEntityNameCaseSensitive);
+                return new StochasticModelsRegistry(generators, CaseSensitivity.IsEntityNamesCaseSensitive);
             }
         }
     }

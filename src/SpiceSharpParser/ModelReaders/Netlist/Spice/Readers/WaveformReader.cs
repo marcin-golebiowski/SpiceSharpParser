@@ -1,10 +1,10 @@
-﻿using SpiceSharp.Components;
+﻿using System;
+using SpiceSharp.Components;
+using SpiceSharpParser.Common.Validation;
 using SpiceSharpParser.ModelReaders.Netlist.Spice.Context;
-using SpiceSharpParser.ModelReaders.Netlist.Spice.Exceptions;
 using SpiceSharpParser.ModelReaders.Netlist.Spice.Mappings;
 using SpiceSharpParser.ModelReaders.Netlist.Spice.Readers.Waveforms;
 using SpiceSharpParser.Models.Netlist.Spice.Objects;
-using System;
 
 namespace SpiceSharpParser.ModelReaders.Netlist.Spice.Readers
 {
@@ -33,7 +33,7 @@ namespace SpiceSharpParser.ModelReaders.Netlist.Spice.Readers
         /// <returns>
         /// An new instance of waveform.
         /// </returns>
-        public Waveform Generate(string type, ParameterCollection parameters, ICircuitContext context)
+        public IWaveformDescription Generate(string type, ParameterCollection parameters, ICircuitContext context)
         {
             if (type == null)
             {
@@ -52,7 +52,14 @@ namespace SpiceSharpParser.ModelReaders.Netlist.Spice.Readers
 
             if (!Mapper.TryGetValue(type, context.CaseSensitivity.IsFunctionNameCaseSensitive, out var reader))
             {
-                throw new ReadingException("Unsupported waveform", parameters.LineInfo);
+                context.Result.Validation.Add(
+                    new ValidationEntry(
+                        ValidationEntrySource.Reader,
+                        ValidationEntryLevel.Warning,
+                        $"Unsupported waveform '{type}'",
+                        parameters.LineInfo));
+
+                return null;
             }
 
             return reader.Generate(parameters, context);

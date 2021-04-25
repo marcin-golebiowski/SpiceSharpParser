@@ -66,7 +66,7 @@
         COMMENT = 10,
 
         /// <summary>
-        /// expression token
+        /// expression with bracket token.
         /// </summary>
         EXPRESSION_BRACKET = 11,
 
@@ -194,5 +194,16 @@
         /// model token
         /// </summary>
         MODEL = 37,
+
+        /// <summary>
+        /// expression with bracket token.
+        /// </summary>
+        EXPRESSION = 38,
+
+        PREFIX_SINGLE = 39,
+
+        PREFIX_COMPLEX = 40,
+
+        SUFFIX = 41,
     }
 }

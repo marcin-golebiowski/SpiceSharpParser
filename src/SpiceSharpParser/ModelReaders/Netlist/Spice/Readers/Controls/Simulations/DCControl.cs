@@ -1,11 +1,11 @@
-﻿using SpiceSharp.Simulations;
-using SpiceSharpParser.Common.Evaluation;
+﻿using System.Collections.Generic;
+using System.Linq;
+using SpiceSharp.Simulations;
+using SpiceSharpParser.Common.Validation;
 using SpiceSharpParser.ModelReaders.Netlist.Spice.Context;
-using SpiceSharpParser.ModelReaders.Netlist.Spice.Exceptions;
 using SpiceSharpParser.ModelReaders.Netlist.Spice.Mappings;
 using SpiceSharpParser.ModelReaders.Netlist.Spice.Readers.Controls.Exporters;
 using SpiceSharpParser.Models.Netlist.Spice.Objects;
-using System.Collections.Generic;
 
 namespace SpiceSharpParser.ModelReaders.Netlist.Spice.Readers.Controls.Simulations
 {
@@ -37,32 +37,42 @@ namespace SpiceSharpParser.ModelReaders.Netlist.Spice.Readers.Controls.Simulatio
                 case 0:
                     if (statement.Parameters.Count == 0)
                     {
-                        throw new WrongParametersCountException(".dc - Source Name expected", statement.LineInfo);
+                        context.Result.Validation.Add(new ValidationEntry(ValidationEntrySource.Reader, ValidationEntryLevel.Warning, ".dc - Source Name expected", statement.LineInfo));
+                        return null;
                     }
 
                     break;
 
-                case 1: throw new WrongParametersCountException(".dc - Start value expected", statement.LineInfo);
-                case 2: throw new WrongParametersCountException(".dc - Stop value expected", statement.LineInfo);
-                case 3: throw new WrongParametersCountException(".dc - Step value expected", statement.LineInfo);
+                case 1:
+                    context.Result.Validation.Add(new ValidationEntry(ValidationEntrySource.Reader, ValidationEntryLevel.Warning, ".dc - Start value expected", statement.LineInfo));
+                    return null;
+
+                case 2:
+                    context.Result.Validation.Add(new ValidationEntry(ValidationEntrySource.Reader, ValidationEntryLevel.Warning, ".dc - Stop value expected", statement.LineInfo));
+                    return null;
+
+                case 3:
+                    context.Result.Validation.Add(new ValidationEntry(ValidationEntrySource.Reader, ValidationEntryLevel.Warning, ".dc - Step value expected", statement.LineInfo));
+                    return null;
             }
 
             // Format: .DC SRCNAM VSTART VSTOP VINCR [SRC2 START2 STOP2 INCR2]
-            List<SweepConfiguration> sweeps = new List<SweepConfiguration>();
+            List<ISweep> sweeps = new List<ISweep>();
 
             for (int i = 0; i < count; i++)
             {
-                SweepConfiguration sweep = new SweepConfiguration(
-                    statement.Parameters.Get(4 * i).Image,
-                    context.Evaluator.EvaluateDouble(statement.Parameters.Get((4 * i) + 1)),
-                    context.Evaluator.EvaluateDouble(statement.Parameters.Get((4 * i) + 2)),
-                    context.Evaluator.EvaluateDouble(statement.Parameters.Get((4 * i) + 3)));
+                var start = context.Evaluator.EvaluateDouble(statement.Parameters.Get((4 * i) + 1));
+                var stop = context.Evaluator.EvaluateDouble(statement.Parameters.Get((4 * i) + 2));
+                var step = context.Evaluator.EvaluateDouble(statement.Parameters.Get((4 * i) + 3));
+                ParameterSweep sweep = new ParameterSweep(statement.Parameters.Get(4 * i).Image, Enumerable.Range(0, (int)((stop - start) / step) + 1).Select(index => start + (index * step)));
 
                 sweeps.Add(sweep);
             }
 
             DC dc = new DC(name, sweeps);
-            dc.OnParameterSearch += (sender, e) =>
+
+            // TODO: Consult with Sven
+            /*dc.OnParameterSearch += (sender, e) =>
             {
                 string sweepParameterName = e.Name;
                 if (context.Evaluator.HaveParameter(dc, sweepParameterName))
@@ -70,17 +80,17 @@ namespace SpiceSharpParser.ModelReaders.Netlist.Spice.Readers.Controls.Simulatio
                     e.TemperatureNeeded = true;
                     e.Result = new EvaluationParameter(context.Evaluator.GetEvaluationContext(dc), sweepParameterName);
                 }
-            };
+            };*/
 
             ConfigureCommonSettings(dc, context);
-            ConfigureDcSettings(dc.Configurations.Get<DCConfiguration>(), context);
+            ConfigureDcSettings(dc.DCParameters, context);
 
             context.Result.AddSimulation(dc);
 
             return dc;
         }
 
-        private void ConfigureDcSettings(DCConfiguration dCConfiguration, ICircuitContext context)
+        private void ConfigureDcSettings(DCParameters dCConfiguration, ICircuitContext context)
         {
             if (context.Result.SimulationConfiguration.SweepMaxIterations.HasValue)
             {

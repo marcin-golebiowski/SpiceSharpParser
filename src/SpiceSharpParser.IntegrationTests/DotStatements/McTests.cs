@@ -1,5 +1,5 @@
 using System;
-using SpiceSharpParser.ModelReaders.Netlist.Spice.Exceptions;
+using SpiceSharpParser.Common;
 using Xunit;
 
 namespace SpiceSharpParser.IntegrationTests.DotStatements
@@ -98,7 +98,7 @@ namespace SpiceSharpParser.IntegrationTests.DotStatements
 
             var mcResult = result.MonteCarloResult;
 
-            Assert.Throws<ReadingException>(() => mcResult.GetPlot(10));
+            Assert.Throws<SpiceSharpParserException>(() => mcResult.GetPlot(10));
         }
 
         [Fact]
@@ -110,7 +110,7 @@ namespace SpiceSharpParser.IntegrationTests.DotStatements
                 "R1 1 0 {R}",
                 ".OP",
                 ".PARAM R={random()*1000}",
-                ".LET power {@R1[resistance]*I(R1)}",
+                ".LET power {@R1[i]*I(R1)}",
                 ".SAVE power",
                 ".MC 1000 OP power MAX",
                 ".END");

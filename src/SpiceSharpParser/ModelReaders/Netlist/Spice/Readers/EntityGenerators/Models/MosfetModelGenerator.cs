@@ -1,10 +1,10 @@
-﻿using SpiceSharp.Components;
+﻿using System;
+using System.Collections.Generic;
+using SpiceSharp.Components;
+using SpiceSharpParser.Common.Validation;
 using SpiceSharpParser.ModelReaders.Netlist.Spice.Context;
 using SpiceSharpParser.Models.Netlist.Spice.Objects;
 using SpiceSharpParser.Models.Netlist.Spice.Objects.Parameters;
-using System;
-using System.Collections.Generic;
-using SpiceSharpParser.ModelReaders.Netlist.Spice.Exceptions;
 
 namespace SpiceSharpParser.ModelReaders.Netlist.Spice.Readers.EntityGenerators.Models
 {
@@ -22,7 +22,7 @@ namespace SpiceSharpParser.ModelReaders.Netlist.Spice.Readers.EntityGenerators.M
                     case "pmos": m.SetParameter("pmos", true); break;
                 }
 
-                return m;
+                return new Context.Models.Model(name, m, m.Parameters);
             });
 
             Levels.Add(2, (string name, string type, string version) =>
@@ -34,7 +34,7 @@ namespace SpiceSharpParser.ModelReaders.Netlist.Spice.Readers.EntityGenerators.M
                     case "pmos": m.SetParameter("pmos", true); break;
                 }
 
-                return m;
+                return new Context.Models.Model(name, m, m.Parameters);
             });
 
             Levels.Add(3, (string name, string type, string version) =>
@@ -46,7 +46,7 @@ namespace SpiceSharpParser.ModelReaders.Netlist.Spice.Readers.EntityGenerators.M
                     case "pmos": m.SetParameter("pmos", true); break;
                 }
 
-                return m;
+                return new Context.Models.Model(name, m, m.Parameters);
             });
         }
 
@@ -54,9 +54,9 @@ namespace SpiceSharpParser.ModelReaders.Netlist.Spice.Readers.EntityGenerators.M
         /// Gets available model generators indexed by their LEVEL.
         /// The parameters passed are name, type (nmos or pmos) and the version.
         /// </summary>
-        protected Dictionary<int, Func<string, string, string, SpiceSharp.Components.Model>> Levels { get; } = new Dictionary<int, Func<string, string, string, SpiceSharp.Components.Model>>();
+        protected Dictionary<int, Func<string, string, string, Context.Models.Model>> Levels { get; } = new Dictionary<int, Func<string, string, string, Context.Models.Model>>();
 
-        public override SpiceSharp.Components.Model Generate(string id, string type, ParameterCollection parameters, ICircuitContext context)
+        public override Context.Models.Model Generate(string id, string type, ParameterCollection parameters, ICircuitContext context)
         {
             var clonedParameters = (ParameterCollection)parameters.Clone();
 
@@ -97,18 +97,19 @@ namespace SpiceSharpParser.ModelReaders.Netlist.Spice.Readers.EntityGenerators.M
             }
 
             // Generate the model
-            SpiceSharp.Components.Model model = null;
+            Context.Models.Model model = null;
             if (Levels.ContainsKey(level))
             {
                 model = Levels[level].Invoke(id, type, version);
             }
             else
             {
-                throw new ModelNotFoundException($"Unknown mosfet model level {level}", parameters.LineInfo);
+                context.Result.Validation.Add(new ValidationEntry(ValidationEntrySource.Reader, ValidationEntryLevel.Error, $"Unknown mosfet model level {level}", parameters.LineInfo));
+                return null;
             }
 
             // Read all the parameters
-            SetParameters(context, model, clonedParameters);
+            SetParameters(context, model.Entity, clonedParameters);
 
             return model;
         }

@@ -1,33 +1,23 @@
-﻿using SpiceSharp.Components;
-using SpiceSharp.Simulations;
-using SpiceSharpBehavioral.Parsers;
+﻿using System.Linq;
+using SpiceSharp.Components;
 using SpiceSharpParser.Common.Evaluation;
+using SpiceSharpParser.Common.Validation;
 using SpiceSharpParser.ModelReaders.Netlist.Spice.Context;
-using SpiceSharpParser.ModelReaders.Netlist.Spice.Exceptions;
 using SpiceSharpParser.Models.Netlist.Spice.Objects;
 using SpiceSharpParser.Models.Netlist.Spice.Objects.Parameters;
-using System.Linq;
 using Component = SpiceSharp.Components.Component;
 
 namespace SpiceSharpParser.ModelReaders.Netlist.Spice.Readers.EntityGenerators.Components.Sources
 {
     public abstract class SourceGenerator : ComponentGenerator
     {
-        protected SimpleDerivativeParser CreateParser(ICircuitContext context, Simulation simulation)
-        {
-            var simulationContext = context.Evaluator.GetEvaluationContext(simulation);
-            var parser = simulationContext.GetDeriveParser();
-            return parser;
-        }
-
         protected void SetSourceParameters(
-            string name,
             ParameterCollection parameters,
             ICircuitContext context,
             Component component)
         {
             var originalParameters = parameters;
-            parameters = parameters.Skip(VoltageSource.VoltageSourcePinCount);
+            parameters = parameters.Skip(VoltageSource.PinCount);
 
             var acParameter = parameters.FirstOrDefault(p => p.Image.ToLower() == "ac");
             if (acParameter != null)
@@ -99,7 +89,7 @@ namespace SpiceSharpParser.ModelReaders.Netlist.Spice.Readers.EntityGenerators.C
                     }
                     else
                     {
-                        throw new WrongParameterTypeException($"Unsupported waveform: {bp.Name}", bp.LineInfo);
+                        context.Result.Validation.Add(new ValidationEntry(ValidationEntrySource.Reader, ValidationEntryLevel.Warning, $"Unsupported waveform: {bp.Name}", bp.LineInfo));
                     }
                 }
                 else
@@ -112,7 +102,7 @@ namespace SpiceSharpParser.ModelReaders.Netlist.Spice.Readers.EntityGenerators.C
                         }
                         else
                         {
-                            throw new WrongParameterTypeException($"Unsupported waveform: {wp}", wp.LineInfo);
+                            context.Result.Validation.Add(new ValidationEntry(ValidationEntrySource.Reader, ValidationEntryLevel.Warning, $"Unsupported waveform: {wp}", wp.LineInfo));
                         }
                     }
                 }

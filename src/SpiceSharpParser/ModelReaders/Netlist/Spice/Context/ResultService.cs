@@ -1,5 +1,7 @@
-﻿using SpiceSharp;
-using SpiceSharp.Circuits;
+﻿using System;
+using System.Collections.Generic;
+using SpiceSharp;
+using SpiceSharp.Entities;
 using SpiceSharp.Simulations;
 using SpiceSharpParser.ModelReaders.Netlist.Spice.Readers.Controls.Exporters;
 using SpiceSharpParser.ModelReaders.Netlist.Spice.Readers.Controls.Plots;
@@ -7,9 +9,6 @@ using SpiceSharpParser.ModelReaders.Netlist.Spice.Readers.Controls.Prints;
 using SpiceSharpParser.ModelReaders.Netlist.Spice.Readers.Controls.Simulations;
 using SpiceSharpParser.ModelReaders.Netlist.Spice.Readers.Controls.Simulations.Configurations;
 using SpiceSharpParser.Models.Netlist.Spice.Objects;
-using System;
-using System.Collections.Generic;
-using SpiceSharpParser.Common;
 
 namespace SpiceSharpParser.ModelReaders.Netlist.Spice.Context
 {
@@ -58,19 +57,12 @@ namespace SpiceSharpParser.ModelReaders.Netlist.Spice.Context
             set => Result.Seed = value;
         }
 
+        public SpiceNetlistValidationResult Validation => Result.ValidationResult;
+
         /// <summary>
         /// Gets the result where things are added.
         /// </summary>
         private SpiceModel<Circuit, Simulation> Result { get; }
-
-        /// <summary>
-        /// Adds warning.
-        /// </summary>
-        /// <param name="exception">Exception to add.</param>
-        public void AddValidationException(SpiceSharpParserException exception)
-        {
-            Result.ValidationResult.Exceptions.Add(exception);
-        }
 
         /// <summary>
         /// Adds comment.
@@ -132,7 +124,7 @@ namespace SpiceSharpParser.ModelReaders.Netlist.Spice.Context
         /// Adds entity to netlist.
         /// </summary>
         /// <param name="entity">Entity to add.</param>
-        public void AddEntity(Entity entity)
+        public void AddEntity(IEntity entity)
         {
             if (entity == null)
             {
@@ -146,7 +138,7 @@ namespace SpiceSharpParser.ModelReaders.Netlist.Spice.Context
         /// Adds simulation to netlist.
         /// </summary>
         /// <param name="simulation">Simulation to add.</param>
-        public void AddSimulation(BaseSimulation simulation)
+        public void AddSimulation(Simulation simulation)
         {
             if (simulation == null)
             {
@@ -164,7 +156,7 @@ namespace SpiceSharpParser.ModelReaders.Netlist.Spice.Context
         /// <returns>
         /// True if found.
         /// </returns>
-        public bool FindObject(string objectId, out Entity entity)
+        public bool FindObject(string objectId, out IEntity entity)
         {
             if (objectId == null)
             {

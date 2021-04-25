@@ -1,6 +1,13 @@
-﻿using SpiceSharpParser.Common.Evaluation;
+﻿using System;
+using System.Collections.Generic;
+using SpiceSharp;
+using SpiceSharp.Simulations;
+using SpiceSharpParser.Common;
+using SpiceSharpParser.Common.Evaluation;
 using SpiceSharpParser.Common.FileSystem;
 using SpiceSharpParser.Common.Mathematics.Probability;
+using SpiceSharpParser.Common.Validation;
+using SpiceSharpParser.Lexers;
 using SpiceSharpParser.Lexers.Netlist.Spice;
 using SpiceSharpParser.ModelReaders.Netlist.Spice;
 using SpiceSharpParser.ModelReaders.Netlist.Spice.Context;
@@ -9,13 +16,8 @@ using SpiceSharpParser.ModelReaders.Netlist.Spice.Evaluation;
 using SpiceSharpParser.ModelReaders.Netlist.Spice.Processors;
 using SpiceSharpParser.Models.Netlist.Spice;
 using SpiceSharpParser.Parsers.Expression;
-using SpiceSharpParser.Parsers.Netlist.Spice;
-using System;
-using System.Collections.Generic;
-using SpiceSharp;
-using SpiceSharp.Simulations;
-using SpiceSharpParser.Lexers;
 using SpiceSharpParser.Parsers.Netlist;
+using SpiceSharpParser.Parsers.Netlist.Spice;
 
 namespace SpiceSharpParser
 {
@@ -61,8 +63,9 @@ namespace SpiceSharpParser
             var appendModelPreprocessor = new AppendModelPreprocessor();
             var sweepsPreprocessor = new SweepsPreprocessor();
             var ifPostprocessor = new IfPreprocessor();
+            var macroPreprocessor = new MacroPreprocessor();
 
-            Preprocessors.AddRange(new IProcessor[] { includesPreprocessor, libPreprocessor, appendModelPreprocessor, sweepsPreprocessor, ifPostprocessor });
+            Preprocessors.AddRange(new IProcessor[] { includesPreprocessor, libPreprocessor, macroPreprocessor, appendModelPreprocessor, sweepsPreprocessor, ifPostprocessor });
         }
 
         public ISpiceTokenProviderPool TokenProviderPool { get; set; }
@@ -106,7 +109,7 @@ namespace SpiceSharpParser
                 SpiceNetlist originalNetlistModel = SingleNetlistParser.Parse(tokens);
 
                 // Preprocessing
-                var preprocessedNetListModel = GetPreprocessedNetListModel(originalNetlistModel);
+                var preprocessedNetListModel = GetPreprocessedNetListModel(originalNetlistModel, result.ValidationResult);
 
                 // Reading model
                 var reader = new SpiceNetlistReader(Settings.Reading);
@@ -116,27 +119,39 @@ namespace SpiceSharpParser
                 result.PreprocessedInputModel = preprocessedNetListModel;
                 result.SpiceModel = spiceModel;
 
-                result.ValidationResult.SpiceNetlistValidationResult.Exceptions.AddRange(result.SpiceModel.ValidationResult.Exceptions);
+                result.ValidationResult.Reading.AddRange(result.SpiceModel.ValidationResult);
             }
             catch (LexerException e)
             {
-                result.ValidationResult.LexerException = e;
+                result.ValidationResult.Lexing.Add(
+                    new ValidationEntry(
+                        ValidationEntrySource.Lexer,
+                        ValidationEntryLevel.Error,
+                        e.ToString(),
+                        null));
             }
             catch (ParseException e)
             {
-                result.ValidationResult.ParsingValidationResult.ParsingException = e;
+                result.ValidationResult.Parsing.Add(
+                    new ValidationEntry(
+                        ValidationEntrySource.Parser,
+                        ValidationEntryLevel.Error,
+                        e.ToString(),
+                        null));
             }
 
             return result;
         }
 
-        private SpiceNetlist GetPreprocessedNetListModel(SpiceNetlist originalNetlistModel)
+        private SpiceNetlist GetPreprocessedNetListModel(SpiceNetlist originalNetlistModel, SpiceParserValidationResult validationResult)
         {
-            SpiceNetlist preprocessedNetListModel = (SpiceNetlist) originalNetlistModel.Clone();
+            SpiceNetlist preprocessedNetListModel = (SpiceNetlist)originalNetlistModel.Clone();
             var preprocessorContext = GetEvaluationContext();
 
             foreach (var preprocessor in Preprocessors)
             {
+                preprocessor.Validation = validationResult;
+
                 if (preprocessor is IEvaluatorConsumer consumer)
                 {
                     consumer.EvaluationContext = preprocessorContext;
@@ -152,8 +167,8 @@ namespace SpiceSharpParser
         private EvaluationContext GetEvaluationContext()
         {
             var nodeNameGenerator = new MainCircuitNodeNameGenerator(
-                new[] {"0"},
-                Settings.Reading.CaseSensitivity.IsNodeNameCaseSensitive);
+                new[] { "0" },
+                Settings.Reading.CaseSensitivity.IsEntityNamesCaseSensitive);
 
             var objectNameGenerator = new ObjectNameGenerator(string.Empty);
             INameGenerator nameGenerator = new NameGenerator(nodeNameGenerator, objectNameGenerator);

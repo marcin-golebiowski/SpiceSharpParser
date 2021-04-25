@@ -7,6 +7,8 @@ namespace SpiceSharpParser.ModelReaders.Netlist.Spice.Context
     {
         IEnumerable<string> Globals { get; }
 
+        INodeNameGenerator NodeNameGenerator { get; }
+
         string ParseNodeName(string nodePath);
 
         string GenerateObjectName(string entityName);

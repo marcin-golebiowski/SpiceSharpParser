@@ -1,7 +1,7 @@
 ﻿<Project Sdk="Microsoft.NET.Sdk">
 
   <PropertyGroup>
-    <TargetFramework>netcoreapp2.0</TargetFramework>
+    <TargetFramework>net5.0</TargetFramework>
     <ProjectGuid>{94394567-BC35-43EE-92CB-31AC780305FE}</ProjectGuid>
     <IsPackable>false</IsPackable>
   </PropertyGroup>
@@ -14,14 +14,23 @@
   </PropertyGroup>
 
   <ItemGroup>
-    <PackageReference Include="coverlet.msbuild" Version="2.7.0">
+    <Compile Remove="ModelReaders\Spice\Evaluation\**" />
+    <Compile Remove="ModelReaders\Spice\Readers\Waveforms\**" />
+    <EmbeddedResource Remove="ModelReaders\Spice\Evaluation\**" />
+    <EmbeddedResource Remove="ModelReaders\Spice\Readers\Waveforms\**" />
+    <None Remove="ModelReaders\Spice\Evaluation\**" />
+    <None Remove="ModelReaders\Spice\Readers\Waveforms\**" />
+  </ItemGroup>
+
+  <ItemGroup>
+    <PackageReference Include="coverlet.msbuild" Version="3.0.3">
       <PrivateAssets>all</PrivateAssets>
       <IncludeAssets>runtime; build; native; contentfiles; analyzers; buildtransitive</IncludeAssets>
     </PackageReference>
     <PackageReference Include="Microsoft.NET.Test.Sdk" Version="16.2.0" />
-    <PackageReference Include="NSubstitute" Version="4.2.1" />
-    <PackageReference Include="SpiceSharp" Version="2.8.0" />
-    <PackageReference Include="SpiceSharpBehavioral" Version="1.1.5" />
+    <PackageReference Include="NSubstitute" Version="4.2.2" />
+    <PackageReference Include="SpiceSharp" Version="3.1.1" />
+    <PackageReference Include="SpiceSharpBehavioral" Version="3.1.0" />
     <PackageReference Include="StyleCop.Analyzers" Version="1.1.118">
       <PrivateAssets>all</PrivateAssets>
       <IncludeAssets>runtime; build; native; contentfiles; analyzers</IncludeAssets>
@@ -36,11 +45,6 @@
 
   <ItemGroup>
     <ProjectReference Include="..\SpiceSharpParser\SpiceSharpParser.csproj" />
-  </ItemGroup>
-
-  <ItemGroup>
-    <Folder Include="ModelReaders\Spice\Evaluation\" />
-    <Folder Include="ModelReaders\Spice\Readers\Waveforms\" />
   </ItemGroup>
 
 </Project>

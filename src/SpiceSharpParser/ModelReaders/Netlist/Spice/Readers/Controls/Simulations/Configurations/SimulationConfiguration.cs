@@ -1,6 +1,7 @@
-﻿using SpiceSharp.IntegrationMethods;
-using SpiceSharpParser.ModelReaders.Netlist.Spice.Context.Sweeps;
+﻿using SpiceSharp.Simulations;
+using System;
 using System.Collections.Generic;
+using ParameterSweep = SpiceSharpParser.ModelReaders.Netlist.Spice.Context.Sweeps.ParameterSweep;
 
 namespace SpiceSharpParser.ModelReaders.Netlist.Spice.Readers.Controls.Simulations.Configurations
 {
@@ -16,9 +17,9 @@ namespace SpiceSharpParser.ModelReaders.Netlist.Spice.Readers.Controls.Simulatio
 
         public int? SweepMaxIterations { get; set; }
 
-        public int? TranMaxIterations { get; set; }
+        public TransientConfiguration TransientConfiguration { get; set; } = new TransientConfiguration();
 
-        public IntegrationMethod Method { get; set; }
+        public Func<TransientConfiguration, TimeParameters> TimeParametersFactory { get; set; }
 
         public bool? KeepOpInfo { get; set; }
 
@@ -52,10 +53,5 @@ namespace SpiceSharpParser.ModelReaders.Netlist.Spice.Readers.Controls.Simulatio
         /// Gets the Monte Carlo Analysis configuration.
         /// </summary>
         public MonteCarloConfiguration MonteCarloConfiguration { get; } = new MonteCarloConfiguration();
-
-        /// <summary>
-        /// Gets or sets a value indicating whether resistors are dynamic by default.
-        /// </summary>
-        public bool DynamicResistors { get; set; } = false;
     }
 }

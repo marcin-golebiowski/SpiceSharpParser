@@ -82,7 +82,8 @@ namespace SpiceSharpParser.Lexers
                 RegularExpressionPattern,
                 ReturnDecisionProvider,
                 UseDecisionProvider,
-                IgnoreCase);
+                IgnoreCase,
+                TopRule);
         }
     }
 }

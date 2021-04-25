@@ -1,6 +1,5 @@
 ﻿using SpiceSharpParser.Common;
 using SpiceSharpParser.Common.Evaluation;
-using SpiceSharpParser.ModelReaders.Netlist.Spice.Exceptions;
 using SpiceSharpParser.Models.Netlist.Spice.Objects;
 using SpiceSharpParser.Models.Netlist.Spice.Objects.Parameters;
 using System;
@@ -45,7 +44,7 @@ namespace SpiceSharpParser.ModelReaders.Netlist.Spice.Readers.Controls.Exporters
                 throw new ArgumentNullException(nameof(context));
             }
 
-            var comparer = StringComparerProvider.Get(caseSettings.IsEntityParameterNameCaseSensitive);
+            var comparer = StringComparerProvider.Get(false);
 
             var entityName = (parameters[0] as VectorParameter)?.Elements[0].Image;
             var propertyName = (parameters[0] as VectorParameter)?.Elements[1].Image;
@@ -55,7 +54,7 @@ namespace SpiceSharpParser.ModelReaders.Netlist.Spice.Readers.Controls.Exporters
                 if (entityName.Contains("#"))
                 {
                     string objectName = $"{context.NameGenerator.GenerateObjectName(entityName)}_{context.Simulation.Name}";
-                    return new PropertyExport(name, context.Simulation, objectName, propertyName, comparer);
+                    return new PropertyExport(name, context.Simulation, objectName, propertyName);
                 }
                 else
                 {
@@ -63,16 +62,16 @@ namespace SpiceSharpParser.ModelReaders.Netlist.Spice.Readers.Controls.Exporters
 
                     if (context.ResultService.FindObject(objectName, out _))
                     {
-                        return new PropertyExport(name, context.Simulation, objectName, propertyName, comparer);
+                        return new PropertyExport(name, context.Simulation, objectName, propertyName);
                     }
                     else
                     {
-                        return new PropertyExport(name, context.Simulation, entityName, propertyName, comparer);
+                        return new PropertyExport(name, context.Simulation, entityName, propertyName);
                     }
                 }
             }
 
-            throw new ReadingException("Invalid property export", parameters.LineInfo);
+            throw new SpiceSharpParserException("Invalid property export", parameters.LineInfo);
         }
     }
 }

@@ -1,4 +1,5 @@
-﻿using SpiceSharp.Circuits;
+﻿using SpiceSharp.Entities;
+using SpiceSharp.Simulations;
 using SpiceSharpParser.ModelReaders.Netlist.Spice.Context.Models;
 using SpiceSharpParser.ModelReaders.Netlist.Spice.Mappings;
 using SpiceSharpParser.ModelReaders.Netlist.Spice.Readers;
@@ -56,29 +57,34 @@ namespace SpiceSharpParser.ModelReaders.Netlist.Spice.Context
         IModelsRegistry ModelsRegistry { get; }
 
         /// <summary>
-        /// Gets or sets the statements reader.
+        /// Gets the statements reader.
         /// </summary>
         ISpiceStatementsReader StatementsReader { get; }
 
         /// <summary>
-        /// Gets or sets the waveform reader.
+        /// Gets the waveform reader.
         /// </summary>
         IWaveformReader WaveformReader { get; }
 
         /// <summary>
-        /// Gets or sets case-sensitivity settings.
+        /// Gets case-sensitivity settings.
         /// </summary>
         ISpiceNetlistCaseSensitivitySettings CaseSensitivity { get; }
 
         /// <summary>
-        /// Gets or sets working directory.
+        /// Gets working directory.
         /// </summary>
         string WorkingDirectory { get; }
 
         /// <summary>
-        /// Gets or sets instance data.
+        /// Sets parameter of entity to value of expression.
         /// </summary>
-        InstanceData InstanceData { get; }
+        /// <param name="entity">Entity.</param>
+        /// <param name="parameterName">Parameter name.</param>
+        /// <param name="expression">Value expression.</param>
+        /// <param name="beforeTemperature">Should be re-evaluated before temperature.</param>
+        /// <param name="onload">Should be re-evaluated OnBeforeLoad.</param>
+        void SetParameter(IEntity entity, string parameterName, string expression, bool beforeTemperature = true, bool onload = true, Simulation simulation = null);
 
         /// <summary>
         /// Sets parameter of entity to value of expression.
@@ -88,17 +94,7 @@ namespace SpiceSharpParser.ModelReaders.Netlist.Spice.Context
         /// <param name="valueExpression">Value expression.</param>
         /// <param name="beforeTemperature">Should be re-evaluated before temperature.</param>
         /// <param name="onload">Should be re-evaluated OnBeforeLoad.</param>
-        void SetParameter(Entity entity, string parameterName, string valueExpression, bool beforeTemperature = true, bool onload = true);
-
-        /// <summary>
-        /// Sets parameter of entity to value of expression.
-        /// </summary>
-        /// <param name="entity">Entity.</param>
-        /// <param name="parameterName">Parameter name.</param>
-        /// <param name="valueExpression">Value expression.</param>
-        /// <param name="beforeTemperature">Should be re-evaluated before temperature.</param>
-        /// <param name="onload">Should be re-evaluated OnBeforeLoad.</param>
-        void SetParameter(Entity entity, string parameterName, Parameter valueExpression, bool beforeTemperature = true, bool onload = true);
+        void SetParameter(IEntity entity, string parameterName, Parameter valueExpression, bool beforeTemperature = true, bool onload = true);
 
         /// <summary>
         /// Sets the initial voltage.
@@ -110,9 +106,9 @@ namespace SpiceSharpParser.ModelReaders.Netlist.Spice.Context
         /// <summary>
         /// Creates nodes for a component.
         /// </summary>
-        /// <param name="component">A component</param>
-        /// <param name="parameters">Parameters of component</param>
-        void CreateNodes(SpiceSharp.Components.Component component, ParameterCollection parameters);
+        /// <param name="component">A component.</param>
+        /// <param name="parameters">Parameters of component.</param>
+        void CreateNodes(SpiceSharp.Components.IComponent component, ParameterCollection parameters);
 
         /// <summary>
         /// Reads the statements with given order.

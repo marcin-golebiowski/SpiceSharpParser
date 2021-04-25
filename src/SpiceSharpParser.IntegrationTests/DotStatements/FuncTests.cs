@@ -124,19 +124,17 @@ namespace SpiceSharpParser.IntegrationTests.DotStatements
         {
             var netlist = ParseNetlist(
                 "FUNC user function test",
-                "V1 OUT 0 10.0",
-                "R1 OUT 0 {somefunction(1)}",
-                "V2 1 0 17",
+                "V1 1 0 10.0",
+                "R1 1 0 {somefunction(1)}",
                 ".OP",
-                ".SAVE V(OUT) @R1[i]",
-                ".OPTIONS dynamic-resistors",
-                ".FUNC somefunction(x) = {V(x,0) + V(OUT) - 10.0}",
+                ".SAVE V(1) @R1[i]",
+                ".FUNC somefunction(x) = {V(x) + 10.0}",
                 ".END");
 
-            double[] export = RunOpSimulation(netlist, new string[] { "V(OUT)", "@R1[i]" });
+            double[] export = RunOpSimulation(netlist, new string[] { "V(1)", "@R1[i]" });
 
             Assert.Equal(10.0, export[0]);
-            Assert.Equal(10.0 / 17.0, export[1]);
+            Assert.Equal(10.0 / 20.0, export[1]);
         }
 
         [Fact]
@@ -147,16 +145,36 @@ namespace SpiceSharpParser.IntegrationTests.DotStatements
                 "V1 OUT 0 10.0",
                 "R1 OUT 0 {somefunction()}",
                 "V2 1 0 17",
+                "R2 1 0 100",
                 ".OP",
                 ".SAVE V(OUT) @R1[i]",
-                ".OPTIONS dynamic-resistors",
-                ".FUNC somefunction() = {V(1,0) + V(OUT) - 10.0}",
+                ".FUNC somefunction() = {V(1) + 10.0}",
                 ".END");
 
             double[] export = RunOpSimulation(netlist, new string[] { "V(OUT)", "@R1[i]" });
 
             Assert.Equal(10.0, export[0]);
-            Assert.Equal(10.0 / 17.0, export[1]);
+            Assert.Equal(10.0 / 27.0, export[1]);
+        }
+
+        [Fact]
+        public void FuncValue()
+        {
+            var netlist = ParseNetlist(
+                "FUNC user function test",
+                "V1 OUT 0 10.0",
+                "R1 OUT 0 1",
+                "R2 2 0 10",
+                "ESource1 2 0 VALUE = { somefunction(4) * 2 }",
+                ".OP",
+                ".SAVE I(R2)",
+                ".PARAM abc = 1",
+                ".FUNC somefunction(x) = {V(OUT) + x + abc}",
+                ".END");
+
+            double[] export = RunOpSimulation(netlist, new string[] { "I(R2)" });
+
+            Assert.Equal(3, export[0]);
         }
     }
 }

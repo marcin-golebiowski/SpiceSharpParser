@@ -1,10 +1,9 @@
-﻿using SpiceSharpParser.ModelReaders.Netlist.Spice.Context;
-using SpiceSharpParser.ModelReaders.Netlist.Spice.Exceptions;
+﻿using System.Collections.Generic;
+using System.Linq;
+using SpiceSharpParser.Common.Validation;
+using SpiceSharpParser.ModelReaders.Netlist.Spice.Context;
 using SpiceSharpParser.Models.Netlist.Spice.Objects;
 using SpiceSharpParser.Models.Netlist.Spice.Objects.Parameters;
-using System.Collections.Generic;
-using System.Linq;
-using SpiceSharpParser.Common;
 
 namespace SpiceSharpParser.ModelReaders.Netlist.Spice.Readers.Controls
 {
@@ -33,7 +32,13 @@ namespace SpiceSharpParser.ModelReaders.Netlist.Spice.Readers.Controls
                 {
                     if (!assignmentParameter.HasFunctionSyntax)
                     {
-                        throw new SpiceSharpParserException("User function needs to be a function", assignmentParameter.LineInfo);
+                        context.Result.Validation.Add(
+                            new ValidationEntry(
+                                ValidationEntrySource.Reader,
+                                ValidationEntryLevel.Warning,
+                                $".FUNC needs to be a function",
+                                statement.LineInfo));
+                        continue;
                     }
 
                     context.Evaluator.AddFunction(assignmentParameter.Name, assignmentParameter.Arguments, assignmentParameter.Value);
@@ -65,7 +70,7 @@ namespace SpiceSharpParser.ModelReaders.Netlist.Spice.Readers.Controls
                     }
                     else
                     {
-                        throw new WrongParameterTypeException("Unsupported syntax for .FUNC", param.LineInfo);
+                        context.Result.Validation.Add(new ValidationEntry(ValidationEntrySource.Reader, ValidationEntryLevel.Warning, "Unsupported syntax for .FUNC", param.LineInfo));
                     }
                 }
             }

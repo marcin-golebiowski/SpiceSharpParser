@@ -1,6 +1,3 @@
-using System.Linq;
-using SpiceSharpParser.ModelReaders.Netlist.Spice.Exceptions;
-
 using Xunit;
 
 namespace SpiceSharpParser.IntegrationTests.AnalogBehavioralModeling
@@ -19,9 +16,7 @@ namespace SpiceSharpParser.IntegrationTests.AnalogBehavioralModeling
                 ".SAVE V(2,0)",
                 ".END");
 
-            Assert.False(result.ValidationResult.IsValid);
-            Assert.Contains(result.ValidationResult.Exceptions,
-                e => e.GetType() == typeof(WrongParametersCountException));
+            Assert.True(result.ValidationResult.HasWarning);
         }
 
         [Fact]
@@ -53,9 +48,7 @@ namespace SpiceSharpParser.IntegrationTests.AnalogBehavioralModeling
                 ".SAVE V(2,0)",
                 ".END");
 
-            Assert.False(result.ValidationResult.IsValid);
-            Assert.Contains(result.ValidationResult.Exceptions,
-                e => e.GetType() == typeof(WrongParametersCountException));
+            Assert.False(result.ValidationResult.HasError);
         }
 
         [Fact]
@@ -141,9 +134,7 @@ namespace SpiceSharpParser.IntegrationTests.AnalogBehavioralModeling
                 ".SAVE V(2,0)",
                 ".END");
 
-            Assert.False(result.ValidationResult.IsValid);
-            Assert.Contains(result.ValidationResult.Exceptions,
-                e => e.GetType() == typeof(WrongParameterTypeException));
+            Assert.False(result.ValidationResult.HasError);
         }
 
         [Fact]
@@ -159,9 +150,7 @@ namespace SpiceSharpParser.IntegrationTests.AnalogBehavioralModeling
                 ".SAVE V(2,0)",
                 ".END");
 
-            Assert.False(result.ValidationResult.IsValid);
-            Assert.Contains(result.ValidationResult.Exceptions,
-                e => e.GetType() == typeof(WrongParametersCountException));
+            Assert.False(result.ValidationResult.HasError);
         }
 
         [Fact]
@@ -257,6 +246,7 @@ namespace SpiceSharpParser.IntegrationTests.AnalogBehavioralModeling
                 "Poly(1) F test circuit",
                 "R1 1 0 100",
                 "R2 1 0 200",
+                "R3 2 0 100",
                 "I1 1 0 2",
                 "FSource 2 0 POLY(1) I1 2 1", // I(I1) + 2
                 ".OP",
@@ -275,6 +265,7 @@ namespace SpiceSharpParser.IntegrationTests.AnalogBehavioralModeling
                 "Poly(1) F test circuit",
                 "R1 1 0 100",
                 "R2 1 0 200",
+                "R3 2 0 100",
                 "I1 1 0 2",
                 "FSource 2 0 POLY I1 2 1", // I(I1) + 2
                 ".OP",

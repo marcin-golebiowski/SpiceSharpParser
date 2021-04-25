@@ -1,6 +1,10 @@
 ﻿using System;
 using System.Collections.Generic;
+using System.Linq;
 using System.Text.RegularExpressions;
+using SpiceSharpParser.Lexers.Expressions;
+using SpiceSharpParser.Models.Netlist.Spice;
+using SpiceSharpParser.Parsers.Expression.Implementation;
 
 namespace SpiceSharpParser.Lexers.Netlist.Spice
 {
@@ -43,13 +47,10 @@ namespace SpiceSharpParser.Lexers.Netlist.Spice
 
             if (!lexerResult.IsValid)
             {
-                throw new LexerException("Invalid netlist", lexerResult.LexerException);
+                throw new LexerException("Invalid netlist", lexerResult.LexerException, lexerResult.LexerException.LineInfo);
             }
 
-            foreach (var token in lexerResult.Tokens)
-            {
-                yield return new SpiceToken((SpiceTokenType)token.Type, token.Lexem, token.LineNumber, token.StartColumnIndex, null);
-            }
+            return lexerResult.Tokens.Select(token => new SpiceToken((SpiceTokenType)token.Type, token.Lexem, token.LineNumber, token.StartColumnIndex, null));
         }
 
         /// <summary>
@@ -59,14 +60,15 @@ namespace SpiceSharpParser.Lexers.Netlist.Spice
         {
             var builder = new LexerGrammarBuilder<SpiceLexerState>();
             builder.AddRegexRule(new LexerInternalRule("LETTER", "[a-zA-Zµ]"));
-            builder.AddRegexRule(new LexerInternalRule("CHARACTER", @"[a-zA-Z0-9\-\+§]"));
+            builder.AddRegexRule(new LexerInternalRule("CHARACTER", @"[a-zA-Z0-9\-\+§µ]"));
             builder.AddRegexRule(new LexerInternalRule("DIGIT", "[0-9]"));
             builder.AddRegexRule(new LexerInternalRule("SPECIAL", @"[\/\\_\.:%!\#\-;\<\>\^\*\[\]]"));
             builder.AddRegexRule(new LexerTokenRule<SpiceLexerState>(
                 (int)SpiceTokenType.WHITESPACE,
                 "A whitespace characters that will be ignored",
                 @"[\t 	]+",
-                (SpiceLexerState state, string lexem) => LexerRuleReturnDecision.IgnoreToken));
+                (SpiceLexerState state, string lexem) => LexerRuleReturnDecision.IgnoreToken,
+                topRule: true));
 
             builder.AddRegexRule(new LexerTokenRule<SpiceLexerState>(
                 (int)SpiceTokenType.CONTINUATION_CURRENT_LINE,
@@ -109,8 +111,8 @@ namespace SpiceSharpParser.Lexers.Netlist.Spice
             builder.AddDynamicRule(new LexerDynamicRule(
                 (int)SpiceTokenType.EXPRESSION_BRACKET,
                 "A mathematical (also nested) expression in brackets",
-                "{",
-                (string textToLex) =>
+                @"\{.+",
+                (string textToLex, LexerState state) =>
                     {
                         int openBracketCount = 1;
                         int i = 0;
@@ -135,14 +137,18 @@ namespace SpiceSharpParser.Lexers.Netlist.Spice
                             return new Tuple<string, int>(replaced, text.Length);
                         }
 
-                        throw new LexerException("Not matched brackets for expression");
+                        throw new LexerException("Not matched brackets for expression", new SpiceLineInfo()
+                        {
+                            LineNumber = state?.LineNumber ?? 0,
+                            StartColumnIndex = state?.StartColumnIndex ?? 0,
+                        });
                     }));
 
             builder.AddDynamicRule(new LexerDynamicRule(
                 (int)SpiceTokenType.BOOLEAN_EXPRESSION,
                 "A mathematical (also nested) expression in brackets",
-                "(",
-                (string textToLex) =>
+                @"\(.+",
+                (string textToLex, LexerState state) =>
                 {
                     int openBracketCount = 1;
                     var i = 0;
@@ -166,8 +172,106 @@ namespace SpiceSharpParser.Lexers.Netlist.Spice
                         return new Tuple<string, int>(replaced, text.Length);
                     }
 
-                    throw new LexerException("Not matched brackets for expression");
-                }));
+                    throw new LexerException("Not matched brackets for expression", new SpiceLineInfo()
+                    {
+                        LineNumber = state?.LineNumber ?? 0,
+                        StartColumnIndex = state?.StartColumnIndex ?? 0,
+                    });
+                }, new int[] { (int)SpiceTokenType.IF, (int)SpiceTokenType.ELSE_IF }));
+
+            builder.AddDynamicRule(new LexerDynamicRule(
+                (int)SpiceTokenType.EXPRESSION_BRACKET,
+                "An expression after equal",
+                "[^{']+",
+                (string textToLex, LexerState state) =>
+                {
+                    try
+                    {
+                        var parser = new Parser();
+                        var lexer = new Lexer(textToLex);
+
+                        var node = parser.Parse(lexer);
+
+                        int length = lexer.Index - lexer.BuilderLength;
+
+                        if (lexer.Current == ' ')
+                        {
+                            length--;
+                        }
+
+                        var expression = textToLex.Substring(0, length);
+
+                        return new Tuple<string, int>(expression, length);
+                    }
+                    catch
+                    {
+                        return new Tuple<string, int>(string.Empty, 0);
+                    }
+                }, new int[] { (int)SpiceTokenType.EQUAL }));
+
+            if (_options.EnableBusSyntax)
+            {
+                builder.AddRegexRule(new LexerTokenRule<SpiceLexerState>(
+                  (int)SpiceTokenType.SUFFIX,
+                  "Suffix notation",
+                  @"[a-zA-Z0-9_§µ]+(<[\d,():*\s]+>)+",
+                  (SpiceLexerState state, string lexem) => LexerRuleReturnDecision.ReturnToken,
+                  (SpiceLexerState state, string lexem) =>
+                  {
+                      return LexerRuleUseDecision.Use;
+                  }));
+
+                builder.AddRegexRule(new LexerTokenRule<SpiceLexerState>(
+                  (int)SpiceTokenType.PREFIX_SINGLE,
+                  "Prefix notation",
+                  @"\<\*\d\>\s*[a-zA-Z0-9\-\+§µ_]+",
+                  (SpiceLexerState state, string lexem) => LexerRuleReturnDecision.ReturnToken,
+                  (SpiceLexerState state, string lexem) =>
+                  {
+                      return LexerRuleUseDecision.Use;
+                  }));
+
+                builder.AddDynamicRule(new LexerDynamicRule(
+                   (int)SpiceTokenType.PREFIX_COMPLEX,
+                   "Prefix notation with brackets",
+                   @"\<\*\d\>\s*\(",
+                   (string textToLex, LexerState state) =>
+                   {
+                       Match tokenMatch = state.CurrentRuleRegex.Match(textToLex, 0, textToLex.Length);
+
+                       if (tokenMatch.Success && tokenMatch.Length > 0)
+                       {
+                           string prefixBeginning = tokenMatch.Value;
+
+                           int openBracketCount = 1;
+                           var i = 0;
+                           for (i = prefixBeginning.Length; i < textToLex.Length && openBracketCount > 0; i++)
+                           {
+                               if (textToLex[i] == ')')
+                               {
+                                   openBracketCount--;
+                               }
+
+                               if (textToLex[i] == '(')
+                               {
+                                   openBracketCount++;
+                               }
+                           }
+
+                           if (openBracketCount == 0)
+                           {
+                               var complexPrefix = textToLex.Substring(0, i);
+                               return new Tuple<string, int>(complexPrefix, complexPrefix.Length);
+                           }
+                       }
+
+                       throw new LexerException("Error with prefix complex notatation", new SpiceLineInfo()
+                       {
+                           LineNumber = state?.LineNumber ?? 0,
+                           StartColumnIndex = state?.StartColumnIndex ?? 0,
+                       });
+                   }));
+            }
 
             builder.AddRegexRule(
                 new LexerTokenRule<SpiceLexerState>(

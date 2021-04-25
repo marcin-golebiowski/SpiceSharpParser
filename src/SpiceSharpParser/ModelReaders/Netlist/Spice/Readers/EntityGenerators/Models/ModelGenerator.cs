@@ -1,7 +1,8 @@
 ﻿using System;
-using SpiceSharp.Circuits;
-using SpiceSharpParser.Common;
+using SpiceSharp.Entities;
+using SpiceSharpParser.Common.Validation;
 using SpiceSharpParser.ModelReaders.Netlist.Spice.Context;
+using SpiceSharpParser.ModelReaders.Netlist.Spice.Context.Models;
 using SpiceSharpParser.Models.Netlist.Spice.Objects;
 using SpiceSharpParser.Models.Netlist.Spice.Objects.Parameters;
 
@@ -9,9 +10,9 @@ namespace SpiceSharpParser.ModelReaders.Netlist.Spice.Readers.EntityGenerators.M
 {
     public abstract class ModelGenerator : IModelGenerator
     {
-        public abstract SpiceSharp.Components.Model Generate(string id, string type, ParameterCollection parameters, ICircuitContext context);
+        public abstract Context.Models.Model Generate(string id, string type, ParameterCollection parameters, ICircuitContext context);
 
-        protected void SetParameters(ICircuitContext context, Entity entity, ParameterCollection parameters, bool onload = true)
+        protected void SetParameters(ICircuitContext context, IEntity entity, ParameterCollection parameters, bool onload = true)
         {
             foreach (Parameter parameter in parameters)
             {
@@ -21,14 +22,14 @@ namespace SpiceSharpParser.ModelReaders.Netlist.Spice.Readers.EntityGenerators.M
                     {
                         context.SetParameter(entity, ap.Name, ap.Value, onload);
                     }
-                    catch (Exception ex)
+                    catch (Exception)
                     {
-                        context.Result.AddValidationException(new SpiceSharpParserException($"Problem with setting parameter: {parameter.Image}", ex, parameter.LineInfo));
+                        context.Result.Validation.Add(new ValidationEntry(ValidationEntrySource.Reader, ValidationEntryLevel.Warning, $"Problem with setting parameter: {parameter.Image}", parameter.LineInfo));
                     }
                 }
                 else
                 {
-                    context.Result.AddValidationException(new SpiceSharpParserException($"Unsupported parameter: {parameter.Image}", parameter.LineInfo));
+                    context.Result.Validation.Add(new ValidationEntry(ValidationEntrySource.Reader, ValidationEntryLevel.Warning, $"Unsupported parameter: {parameter.Image}", parameter.LineInfo));
                 }
             }
         }

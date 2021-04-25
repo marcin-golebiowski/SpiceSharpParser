@@ -1,5 +1,5 @@
 ﻿using SpiceSharp;
-using SpiceSharp.Circuits;
+using SpiceSharp.Entities;
 using SpiceSharp.Simulations;
 using SpiceSharpParser.ModelReaders.Netlist.Spice.Readers.Controls.Exporters;
 using SpiceSharpParser.ModelReaders.Netlist.Spice.Readers.Controls.Plots;
@@ -8,7 +8,6 @@ using SpiceSharpParser.ModelReaders.Netlist.Spice.Readers.Controls.Simulations;
 using SpiceSharpParser.ModelReaders.Netlist.Spice.Readers.Controls.Simulations.Configurations;
 using SpiceSharpParser.Models.Netlist.Spice.Objects;
 using System.Collections.Generic;
-using SpiceSharpParser.Common;
 
 namespace SpiceSharpParser.ModelReaders.Netlist.Spice.Context
 {
@@ -26,7 +25,7 @@ namespace SpiceSharpParser.ModelReaders.Netlist.Spice.Context
 
         int? Seed { get; set; }
 
-        void AddValidationException(SpiceSharpParserException exception);
+        SpiceNetlistValidationResult Validation { get; }
 
         void AddComment(CommentLine statement);
 
@@ -34,11 +33,11 @@ namespace SpiceSharpParser.ModelReaders.Netlist.Spice.Context
 
         void AddPlot(XyPlot plot);
 
-        void AddEntity(Entity entity);
+        void AddEntity(IEntity entity);
 
-        void AddSimulation(BaseSimulation simulation);
+        void AddSimulation(Simulation simulation);
 
-        bool FindObject(string objectId, out Entity entity);
+        bool FindObject(string objectId, out IEntity entity);
 
         void AddPrint(Print print);
     }

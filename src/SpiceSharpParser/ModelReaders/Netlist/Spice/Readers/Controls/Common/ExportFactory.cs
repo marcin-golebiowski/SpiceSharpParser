@@ -1,12 +1,12 @@
-﻿using SpiceSharp.Simulations;
+﻿using System.Collections.Generic;
+using System.Linq;
+using SpiceSharp.Simulations;
+using SpiceSharpParser.Common.Validation;
 using SpiceSharpParser.ModelReaders.Netlist.Spice.Context;
-using SpiceSharpParser.ModelReaders.Netlist.Spice.Exceptions;
 using SpiceSharpParser.ModelReaders.Netlist.Spice.Mappings;
 using SpiceSharpParser.ModelReaders.Netlist.Spice.Readers.Controls.Exporters;
 using SpiceSharpParser.Models.Netlist.Spice.Objects;
 using SpiceSharpParser.Models.Netlist.Spice.Objects.Parameters;
-using System.Collections.Generic;
-using System.Linq;
 
 namespace SpiceSharpParser.ModelReaders.Netlist.Spice.Readers.Controls.Common
 {
@@ -43,8 +43,8 @@ namespace SpiceSharpParser.ModelReaders.Netlist.Spice.Readers.Controls.Common
                             new List<SingleParameter>()
                             {
                                 new WordParameter(rp.Name, rp.LineInfo),
-                                new WordParameter(rp.Argument, rp.LineInfo)
-                            })
+                                new WordParameter(rp.Argument, rp.LineInfo),
+                            }),
                     });
 
                 if (mapper.TryGetValue(type, true, out var exporter))
@@ -74,11 +74,13 @@ namespace SpiceSharpParser.ModelReaders.Netlist.Spice.Readers.Controls.Common
                 }
                 else
                 {
-                    throw new ReadingException($"There is no {expressionName} expression", exportParameter.LineInfo);
+                    context.Result.Validation.Add(new ValidationEntry(ValidationEntrySource.Reader, ValidationEntryLevel.Warning, $"There is no {expressionName} expression", exportParameter.LineInfo));
+                    return null;
                 }
             }
 
-            throw new ReadingException($"Unsupported export: {exportParameter.Image}", exportParameter.LineInfo);
+            context.Result.Validation.Add(new ValidationEntry(ValidationEntrySource.Reader, ValidationEntryLevel.Warning, $"Unsupported export: {exportParameter.Image}", exportParameter.LineInfo));
+            return null;
         }
     }
 }

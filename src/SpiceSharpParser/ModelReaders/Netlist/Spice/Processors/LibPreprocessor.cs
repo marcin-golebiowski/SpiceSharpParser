@@ -1,13 +1,14 @@
-﻿using SpiceSharpParser.Common.FileSystem;
-using SpiceSharpParser.Lexers.Netlist.Spice;
-using SpiceSharpParser.ModelReaders.Netlist.Spice.Exceptions;
-using SpiceSharpParser.Models.Netlist.Spice;
-using SpiceSharpParser.Models.Netlist.Spice.Objects;
-using SpiceSharpParser.Parsers.Netlist.Spice;
-using System;
+﻿using System;
 using System.Collections.Generic;
 using System.IO;
 using System.Linq;
+using SpiceSharpParser.Common;
+using SpiceSharpParser.Common.FileSystem;
+using SpiceSharpParser.Common.Validation;
+using SpiceSharpParser.Lexers.Netlist.Spice;
+using SpiceSharpParser.Models.Netlist.Spice;
+using SpiceSharpParser.Models.Netlist.Spice.Objects;
+using SpiceSharpParser.Parsers.Netlist.Spice;
 
 namespace SpiceSharpParser.ModelReaders.Netlist.Spice.Processors
 {
@@ -70,12 +71,17 @@ namespace SpiceSharpParser.ModelReaders.Netlist.Spice.Processors
         /// </summary>
         public IProcessor IncludesPreprocessor { get; }
 
+        /// <summary>
+        /// Gets or sets validation.
+        /// </summary>
+        public SpiceParserValidationResult Validation { get; set; }
+
         protected Func<string> InitialDirectoryPathProvider { get; }
 
         /// <summary>
         /// Reads .include statements.
         /// </summary>
-        /// <param name="statements">Netlist model to search for .include statements</param>
+        /// <param name="statements">Netlist model to search for .include statements.</param>
         public Statements Process(Statements statements)
         {
             if (statements == null)
@@ -109,7 +115,7 @@ namespace SpiceSharpParser.ModelReaders.Netlist.Spice.Processors
 
                 if (position == allStatements.Count)
                 {
-                    throw new ReadingException("No .ENDL found");
+                    throw new SpiceSharpParserException("No .ENDL found");
                 }
                 else
                 {
@@ -122,7 +128,7 @@ namespace SpiceSharpParser.ModelReaders.Netlist.Spice.Processors
         /// <summary>
         /// Reads .include statements.
         /// </summary>
-        /// <param name="statements">Netlist model to search for .include statements</param>
+        /// <param name="statements">Netlist model to search for .include statements.</param>
         /// <param name="currentDirectoryPath">Current directory path.</param>
         private Statements Process(Statements statements, string currentDirectoryPath)
         {
@@ -179,7 +185,13 @@ namespace SpiceSharpParser.ModelReaders.Netlist.Spice.Processors
             // check if file exists
             if (!File.Exists(libFullPath))
             {
-                throw new InvalidOperationException($"Netlist include at {libFullPath}  is not found");
+                Validation.Reading.Add(
+                    new ValidationEntry(
+                        ValidationEntrySource.Reader,
+                        ValidationEntryLevel.Warning,
+                        $"Netlist include at {libFullPath} could not be found",
+                        lib.LineInfo));
+                return;
             }
 
             // get lib content
@@ -220,7 +232,12 @@ namespace SpiceSharpParser.ModelReaders.Netlist.Spice.Processors
             }
             else
             {
-                throw new InvalidOperationException($"Netlist include at {libFullPath} could not be loaded");
+                Validation.Reading.Add(
+                    new ValidationEntry(
+                        ValidationEntrySource.Reader,
+                        ValidationEntryLevel.Warning,
+                        $"Netlist include at {libFullPath} could not be read",
+                        lib.LineInfo));
             }
         }
     }

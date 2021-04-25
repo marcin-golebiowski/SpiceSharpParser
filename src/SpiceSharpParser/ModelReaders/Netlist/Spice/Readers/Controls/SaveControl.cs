@@ -1,18 +1,17 @@
-﻿using SpiceSharp.Circuits;
+﻿using System;
+using System.Collections.Generic;
+using System.Linq;
+using System.Reflection;
+using SpiceSharp.Entities;
 using SpiceSharp.Simulations;
+using SpiceSharpParser.Common.Validation;
 using SpiceSharpParser.ModelReaders.Netlist.Spice.Context;
-using SpiceSharpParser.ModelReaders.Netlist.Spice.Context.Sweeps;
-using SpiceSharpParser.ModelReaders.Netlist.Spice.Exceptions;
 using SpiceSharpParser.ModelReaders.Netlist.Spice.Mappings;
 using SpiceSharpParser.ModelReaders.Netlist.Spice.Readers.Controls.Common;
 using SpiceSharpParser.ModelReaders.Netlist.Spice.Readers.Controls.Exporters;
 using SpiceSharpParser.ModelReaders.Netlist.Spice.Readers.Controls.Plots;
 using SpiceSharpParser.Models.Netlist.Spice.Objects;
 using SpiceSharpParser.Models.Netlist.Spice.Objects.Parameters;
-using System;
-using System.Collections.Generic;
-using System.Linq;
-using System.Reflection;
 
 namespace SpiceSharpParser.ModelReaders.Netlist.Spice.Readers.Controls
 {
@@ -170,7 +169,7 @@ namespace SpiceSharpParser.ModelReaders.Netlist.Spice.Readers.Controls
             }
         }
 
-        private void CreateOpSweepPlot(ParameterSweep firstParameterSweep, string variableName, List<Export> exports, ICircuitContext context)
+        private void CreateOpSweepPlot(Context.Sweeps.ParameterSweep firstParameterSweep, string variableName, List<Export> exports, ICircuitContext context)
         {
             var plot = new XyPlot("OP - Parameter sweep: " + variableName);
 
@@ -197,7 +196,7 @@ namespace SpiceSharpParser.ModelReaders.Netlist.Spice.Readers.Controls
             {
                 var series = new Series(export.Simulation.Name)
                 {
-                    XUnit = "Time (s)",
+                    XUnit = "Time (parameter)",
                     YUnit = export.QuantityUnit,
                 };
                 AddTranPointsToSeries(export, series);
@@ -216,7 +215,7 @@ namespace SpiceSharpParser.ModelReaders.Netlist.Spice.Readers.Controls
             {
                 var series = new Series(export.Simulation.Name)
                 {
-                    XUnit = "Freq (s)",
+                    XUnit = "Freq (parameter)",
                     YUnit = export.QuantityUnit,
                 };
                 AddAcPointsToSeries(export, series);
@@ -227,7 +226,7 @@ namespace SpiceSharpParser.ModelReaders.Netlist.Spice.Readers.Controls
             context.Result.AddPlot(plot);
         }
 
-        private void AddOpPointToSeries(ParameterSweep firstParameterSweep, Export export, ICircuitContext context, Series series)
+        private void AddOpPointToSeries(Context.Sweeps.ParameterSweep firstParameterSweep, Export export, ICircuitContext context, Series series)
         {
             export.Simulation.ExportSimulationData += (object sender, ExportDataEventArgs e) =>
             {
@@ -262,7 +261,7 @@ namespace SpiceSharpParser.ModelReaders.Netlist.Spice.Readers.Controls
             {
                 var nodes = new List<string>();
 
-                foreach (Entity entity in context.Result.Circuit)
+                foreach (IEntity entity in context.Result.Circuit)
                 {
                     if (entity is SpiceSharp.Components.Component c)
                     {
@@ -270,9 +269,9 @@ namespace SpiceSharpParser.ModelReaders.Netlist.Spice.Readers.Controls
                         var @params = new ParameterCollection(new List<Parameter>());
                         @params.Add(new WordParameter(componentName, null));
 
-                        for (var i = 0; i < c.PinCount; i++)
+                        for (var i = 0; i < c.Nodes.Count; i++)
                         {
-                            var node = c.GetNode(i);
+                            var node = c.Nodes[i];
                             if (!nodes.Contains(node))
                             {
                                 nodes.Add(node);
@@ -318,9 +317,9 @@ namespace SpiceSharpParser.ModelReaders.Netlist.Spice.Readers.Controls
             }
         }
 
-        private void AddLetExport(ICircuitContext context, Type simulationType, SingleParameter s)
+        private void AddLetExport(ICircuitContext context, Type simulationType, SingleParameter parameter)
         {
-            string expressionName = s.Image;
+            string expressionName = parameter.Image;
             var expressionNames = context.Evaluator.GetExpressionNames();
 
             if (expressionNames.Contains(expressionName))
@@ -334,7 +333,12 @@ namespace SpiceSharpParser.ModelReaders.Netlist.Spice.Readers.Controls
             }
             else
             {
-                throw new ReadingException($"There is no {expressionName} expression");
+                context.Result.Validation.Add(
+                    new ValidationEntry(
+                        ValidationEntrySource.Reader,
+                        ValidationEntryLevel.Warning,
+                        $"There is no {expressionName} expression",
+                        parameter.LineInfo));
             }
         }
 

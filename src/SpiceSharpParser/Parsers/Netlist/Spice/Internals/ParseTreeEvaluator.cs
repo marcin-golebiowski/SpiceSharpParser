@@ -318,11 +318,21 @@ namespace SpiceSharpParser.Parsers.Netlist.Spice
                     case SpiceTokenType.WORD:
                         return new WordParameter(lexemValue, new SpiceLineInfo(t.Token));
 
+                    case SpiceTokenType.SUFFIX:
+                        return new SuffixParameter(lexemValue, new SpiceLineInfo(t.Token));
+
+                    case SpiceTokenType.PREFIX_SINGLE:
+                    case SpiceTokenType.PREFIX_COMPLEX:
+                        return new PrefixParameter(lexemValue, new SpiceLineInfo(t.Token));
+
                     case SpiceTokenType.IDENTIFIER:
                         return new IdentifierParameter(lexemValue, new SpiceLineInfo(t.Token));
 
+                    case SpiceTokenType.EXPRESSION:
+                        return new ExpressionParameter(lexemValue, new SpiceLineInfo(t.Token));
+
                     case SpiceTokenType.EXPRESSION_BRACKET:
-                        return new ExpressionParameter(lexemValue.Trim('{', '}'), new SpiceLineInfo(t.Token));
+                        return new ExpressionParameter(lexemValue.Replace("}", string.Empty).Replace("{", string.Empty), new SpiceLineInfo(t.Token));
 
                     case SpiceTokenType.EXPRESSION_SINGLE_QUOTES:
                         return new ExpressionParameter(lexemValue.Trim('\''), new SpiceLineInfo(t.Token));
@@ -380,6 +390,16 @@ namespace SpiceSharpParser.Parsers.Netlist.Spice
                 values.GetSpiceObject<ParameterCollection>(1),
                 new SpiceLineInfo(values));
 
+            switch ((SpiceTokenType)values.GetToken(0).Type)
+            {
+                case SpiceTokenType.SUFFIX:
+                    component.NameParameter = new SuffixParameter(values.GetLexem(0));
+                    break;
+                default:
+                    component.NameParameter = new WordParameter(values.GetLexem(0));
+                    break;
+            }
+
             return component;
         }
 
@@ -402,19 +422,26 @@ namespace SpiceSharpParser.Parsers.Netlist.Spice
                     break;
 
                 case ".if":
-                    control = new Control("if", new ParameterCollection(new List<Parameter>()
-                    {
-                        new ExpressionParameter(values.GetLexem(1), lineInfo)
-                    }), lineInfo);
+                    control = new Control(
+                        "if",
+                        new ParameterCollection(
+                            new List<Parameter>()
+                            {
+                                new ExpressionParameter(values.GetLexem(1), lineInfo),
+                            }),
+                        lineInfo);
 
                     break;
 
                 case ".elseif":
-                    control = new Control("elseif", new ParameterCollection(new List<Parameter>()
-                    {
-                        new ExpressionParameter(values.GetLexem(1), lineInfo)
-                    }), lineInfo);
-
+                    control = new Control(
+                        "elseif",
+                        new ParameterCollection(
+                            new List<Parameter>()
+                            {
+                                new ExpressionParameter(values.GetLexem(1), lineInfo),
+                            }),
+                        lineInfo);
                     break;
 
                 case ".else":
@@ -447,7 +474,7 @@ namespace SpiceSharpParser.Parsers.Netlist.Spice
                 throw new ParseTreeEvaluationException("Error during translating parse tree to Spice Object Model");
             }
 
-            var subCkt = new SubCircuit(values.GetLexem(2), new Statements(), new List<string>(), new SpiceLineInfo(values));
+            var subCkt = new SubCircuit(values.GetLexem(2), new Statements(), new ParameterCollection(), new SpiceLineInfo(values));
 
             var allParameters = values.GetSpiceObject<ParameterCollection>(3);
 
@@ -475,9 +502,11 @@ namespace SpiceSharpParser.Parsers.Netlist.Spice
                     {
                         if (s2 is WordParameter
                             || s2 is IdentifierParameter
+                            || s2 is PrefixParameter
+                            || s2 is SuffixParameter
                             || int.TryParse(s2.Image, out _))
                         {
-                            subCkt.Pins.Add(s2.Image);
+                            subCkt.Pins.Add(s2);
                         }
                     }
                 }
@@ -637,7 +666,6 @@ namespace SpiceSharpParser.Parsers.Netlist.Spice
             {
                 throw new ParseTreeEvaluationException("Error during translating parse tree to Spice Object Model");
             }
-
         }
 
         /// <summary>
@@ -684,7 +712,7 @@ namespace SpiceSharpParser.Parsers.Netlist.Spice
                 var assignmentParameter = new AssignmentParameter(
                     values.GetLexem(0),
                     new List<string>(),
-                    new List<string>() {singleParameter.Image},
+                    new List<string>() { singleParameter.Image },
                     false,
                     singleParameter.LineInfo);
 

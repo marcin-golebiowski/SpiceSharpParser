@@ -1,9 +1,9 @@
-﻿using SpiceSharp.Simulations;
+﻿using System;
+using System.Collections.Generic;
+using SpiceSharp.Simulations;
+using SpiceSharpParser.Common;
 using SpiceSharpParser.Common.Evaluation;
 using SpiceSharpParser.Models.Netlist.Spice.Objects;
-using System;
-using System.Collections.Generic;
-using SpiceSharpParser.Common;
 
 namespace SpiceSharpParser.ModelReaders.Netlist.Spice.Context
 {
@@ -133,12 +133,12 @@ namespace SpiceSharpParser.ModelReaders.Netlist.Spice.Context
             }
 
             IFunctionFactory factory = new FunctionFactory();
-            ParsingContext.AddFunction(functionName, factory.Create(functionName, arguments, body));
+            ParsingContext.AddFunction(functionName, body, arguments, factory.Create(functionName, arguments, body));
         }
 
         public void AddFunction(string functionName, IFunction<double, double> function)
         {
-            ParsingContext.AddFunction(functionName, function);
+            ParsingContext.AddFunction(functionName, null, null, function);
         }
 
         public void SetNamedExpression(string expressionName, string expression)

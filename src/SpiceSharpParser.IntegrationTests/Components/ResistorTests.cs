@@ -1,4 +1,4 @@
-using SpiceSharpParser.ModelReaders.Netlist.Spice.Exceptions;
+using System;
 using Xunit;
 
 namespace SpiceSharpParser.IntegrationTests.Components
@@ -16,7 +16,7 @@ namespace SpiceSharpParser.IntegrationTests.Components
                 ".OP",
                 ".END");
 
-            Assert.False(result.ValidationResult.IsValid);
+            Assert.True(result.ValidationResult.HasWarning);
         }
 
         [Fact]
@@ -165,7 +165,7 @@ namespace SpiceSharpParser.IntegrationTests.Components
                     ".OP",
                     ".END");
 
-            Assert.False(result.ValidationResult.IsValid);
+            Assert.False(result.ValidationResult.HasError);
         }
 
         [Fact]
@@ -243,7 +243,7 @@ namespace SpiceSharpParser.IntegrationTests.Components
                 "Resistor circuit",
                 "V1 1 0 150",
                 "R1 1 0 myresistor L=10u W=2u",
-                ".MODEL myresistor R RSH=0.1 TC1=0 TC2=0",
+                ".MODEL myresistor R rsh=0.1 tc1=0 tc2=0",
                 ".SAVE I(R1)",
                 ".OP",
                 ".OPTIONS TEMP=10",
@@ -341,6 +341,25 @@ namespace SpiceSharpParser.IntegrationTests.Components
             var export = RunOpSimulation(netlist, "I(R1)");
             Assert.NotNull(netlist);
             EqualsWithTol(10.0908173562059, export);
+        }
+
+        [Fact]
+        public void When_DynamicResistorsIsSpecified_Expect_DynamicResistors()
+        {
+            var netlist = ParseNetlist(
+                "DC Sweep - dynamic resistors",
+                "V1 in 0 0",
+                "V2 out 0 10",
+                "R1 out 0 {max(V(in), 1e-3)}",
+                ".DC V1 0 10 1e-3",
+                ".SAVE I(R1)",
+                ".END");
+
+            var exports = RunDCSimulation(netlist, "I(R1)");
+
+            // Get references
+            Func<double, double> reference = sweep => 10.0 / Math.Max(1e-3, (sweep));
+            EqualsWithTol(exports, reference);
         }
     }
 }

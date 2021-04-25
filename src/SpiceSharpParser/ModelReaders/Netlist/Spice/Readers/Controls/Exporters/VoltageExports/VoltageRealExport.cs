@@ -1,5 +1,5 @@
 ﻿using SpiceSharp.Simulations;
-using SpiceSharpParser.ModelReaders.Netlist.Spice.Exceptions;
+using SpiceSharpParser.Common;
 
 namespace SpiceSharpParser.ModelReaders.Netlist.Spice.Readers.Controls.Exporters.VoltageExports
 {
@@ -21,7 +21,7 @@ namespace SpiceSharpParser.ModelReaders.Netlist.Spice.Readers.Controls.Exporters
             Name = name ?? throw new System.ArgumentNullException(nameof(name));
             Node = node ?? throw new System.ArgumentNullException(nameof(node));
             Reference = reference;
-            ExportImpl = new RealVoltageExport((BaseSimulation)simulation, node, reference);
+            ExportImpl = new RealVoltageExport((IBiasingSimulation)simulation, node, reference);
         }
 
         /// <summary>
@@ -56,7 +56,7 @@ namespace SpiceSharpParser.ModelReaders.Netlist.Spice.Readers.Controls.Exporters
             {
                 if (ExceptionsEnabled)
                 {
-                    throw new ReadingException($"Voltage real export '{Name}' is invalid");
+                    throw new SpiceSharpParserException($"Voltage real export '{Name}' is invalid");
                 }
 
                 return double.NaN;

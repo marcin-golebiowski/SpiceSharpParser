@@ -1,7 +1,7 @@
 ﻿using SpiceSharp.Simulations;
-using SpiceSharpParser.ModelReaders.Netlist.Spice.Exceptions;
 using System;
 using System.Collections.Generic;
+using SpiceSharpParser.Common;
 
 namespace SpiceSharpParser.ModelReaders.Netlist.Spice.Readers.Controls.Exporters
 {
@@ -17,8 +17,7 @@ namespace SpiceSharpParser.ModelReaders.Netlist.Spice.Readers.Controls.Exporters
         /// <param name="simulation">A simulation.</param>
         /// <param name="source">A identifier of component.</param>
         /// <param name="property">Name of property for export.</param>
-        /// <param name="comparer">Entity property name comparer.</param>
-        public PropertyExport(string name, Simulation simulation, string source, string property, IEqualityComparer<string> comparer)
+        public PropertyExport(string name, Simulation simulation, string source, string property)
             : base(simulation)
         {
             Name = name ?? throw new NullReferenceException(nameof(name));
@@ -28,7 +27,7 @@ namespace SpiceSharpParser.ModelReaders.Netlist.Spice.Readers.Controls.Exporters
             }
 
             Source = source ?? throw new NullReferenceException(nameof(source));
-            ExportRealImpl = new RealPropertyExport(simulation, source, property, comparer);
+            ExportRealImpl = new RealPropertyExport(simulation, source, property);
         }
 
         /// <summary>
@@ -58,7 +57,7 @@ namespace SpiceSharpParser.ModelReaders.Netlist.Spice.Readers.Controls.Exporters
             {
                 if (ExceptionsEnabled)
                 {
-                    throw new ReadingException($"Property export {Name} is invalid");
+                    throw new SpiceSharpParserException($"Property export {Name} is invalid");
                 }
 
                 return double.NaN;

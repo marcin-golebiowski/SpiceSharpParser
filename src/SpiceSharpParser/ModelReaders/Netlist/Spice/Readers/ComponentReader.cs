@@ -1,11 +1,11 @@
-﻿using SpiceSharp.Circuits;
+﻿using System;
+using SpiceSharp.Entities;
+using SpiceSharpParser.Common.Validation;
 using SpiceSharpParser.ModelReaders.Netlist.Spice.Context;
-using SpiceSharpParser.ModelReaders.Netlist.Spice.Exceptions;
 using SpiceSharpParser.ModelReaders.Netlist.Spice.Mappings;
 using SpiceSharpParser.ModelReaders.Netlist.Spice.Readers.EntityGenerators;
-using SpiceSharpParser.Models.Netlist.Spice.Objects;
-using System;
 using SpiceSharpParser.Models.Netlist.Spice;
+using SpiceSharpParser.Models.Netlist.Spice.Objects;
 
 namespace SpiceSharpParser.ModelReaders.Netlist.Spice.Readers
 {
@@ -49,7 +49,7 @@ namespace SpiceSharpParser.ModelReaders.Netlist.Spice.Readers
 
             IComponentGenerator generator = GetComponentGenerator(context, componentName, statement.LineInfo, out string componentType);
 
-            Entity entity = generator.Generate(
+            IEntity entity = generator?.Generate(
                 context.NameGenerator.GenerateObjectName(componentName),
                 componentName,
                 componentType,
@@ -66,14 +66,16 @@ namespace SpiceSharpParser.ModelReaders.Netlist.Spice.Readers
         {
             foreach (var map in Mapper)
             {
-                if (componentName.StartsWith(map.Key, context.CaseSensitivity.IsEntityNameCaseSensitive ? StringComparison.CurrentCulture : StringComparison.CurrentCultureIgnoreCase))
+                if (componentName.StartsWith(map.Key, context.CaseSensitivity.IsEntityNamesCaseSensitive ? StringComparison.CurrentCulture : StringComparison.CurrentCultureIgnoreCase))
                 {
                     componentType = map.Key;
                     return map.Value;
                 }
             }
 
-            throw new UnknownComponentException($"Unsupported component {componentName}", lineInfo);
+            context.Result.Validation.Add(new ValidationEntry(ValidationEntrySource.Reader, ValidationEntryLevel.Warning, $"Unsupported component {componentName}", lineInfo));
+            componentType = null;
+            return null;
         }
     }
 }

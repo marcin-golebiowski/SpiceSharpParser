@@ -5,7 +5,7 @@
     /// </summary>
     public class Component : Statement
     {
-        public Component(string name, ParameterCollection pinsAndParameters, SpiceLineInfo lineInfo) 
+        public Component(string name, ParameterCollection pinsAndParameters, SpiceLineInfo lineInfo)
             : base(lineInfo)
         {
             Name = name;
@@ -13,14 +13,19 @@
         }
 
         /// <summary>
-        /// Gets or sets the name of component.
+        /// Gets the name of component.
         /// </summary>
-        public string Name { get; }
+        public string Name { get; set; }
 
         /// <summary>
-        /// Gets or sets pins and components parameters.
+        /// Gets or sets name parameter.
         /// </summary>
-        public ParameterCollection PinsAndParameters { get; }
+        public Parameter NameParameter { get; set; }
+
+        /// <summary>
+        /// Gets pins and components parameters.
+        /// </summary>
+        public ParameterCollection PinsAndParameters { get; set; }
 
         /// <summary>
         /// Clones the object.
@@ -28,7 +33,9 @@
         /// <returns>A clone of the object.</returns>
         public override SpiceObject Clone()
         {
-            return new Component(Name, PinsAndParameters, LineInfo);
+            var clone = new Component(Name, (ParameterCollection)PinsAndParameters.Clone(), LineInfo);
+            clone.NameParameter = (Parameter)NameParameter.Clone();
+            return clone;
         }
     }
 }

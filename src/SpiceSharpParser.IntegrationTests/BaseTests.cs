@@ -6,6 +6,7 @@ using System.Collections.Generic;
 using System.Linq;
 using SpiceSharp;
 using Xunit;
+using System.Diagnostics;
 
 namespace SpiceSharpParser.IntegrationTests
 {
@@ -44,6 +45,19 @@ namespace SpiceSharpParser.IntegrationTests
             parser.Settings.Parsing.IsEndRequired = true;
 
             return parser.ParseNetlist(text).SpiceModel;
+        }
+
+
+        public static SpiceParserResult ParseNetlistRaw(bool enableBusSyntax = false, params string[] lines)
+        {
+            var text = string.Join(Environment.NewLine, lines);
+            var parser = new SpiceParser();
+
+            parser.Settings.Lexing.HasTitle = true;
+            parser.Settings.Lexing.EnableBusSyntax = enableBusSyntax;
+            parser.Settings.Parsing.IsEndRequired = true;
+
+            return parser.ParseNetlist(text);
         }
 
         public static ISpiceModel<Circuit, Simulation> ParseNetlist(int randomSeed, params string[] lines)
@@ -239,7 +253,7 @@ namespace SpiceSharpParser.IntegrationTests
             var simulation = readerResult.Simulations.First(s => s is DC);
             simulation.ExportSimulationData += (sender, e) =>
             {
-                list.Add(new Tuple<double, double>(e.SweepValue, export.Extract()));
+                list.Add(new Tuple<double, double>(e.GetSweepValues().First(), export.Extract()));
             };
 
             simulation.Run(readerResult.Circuit);
@@ -256,6 +270,7 @@ namespace SpiceSharpParser.IntegrationTests
                     double actual = exportIt.Current.Item2;
                     double expected = reference(exportIt.Current.Item1);
                     double tol = Math.Max(Math.Abs(actual), Math.Abs(expected)) * RelTol + AbsTol;
+
                     Assert.True(Math.Abs(expected - actual) < tol);
                 }
             }

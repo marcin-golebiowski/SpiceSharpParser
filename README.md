@@ -45,13 +45,13 @@ namespace SpiceSharpParserExample
             // Parsing part - SpiceSharpParser
             var parser = new SpiceParser();
             var parseResult = parser.ParseNetlist(netlist);
-            var spiceSharpModel = parseResult.SpiceSharpModel;
+            var spiceModel = parseResult.SpiceModel;
 
             // Simulation part - SpiceSharp
-            var simulation = spiceSharpModel.Simulations.Single();
-            var export = spiceSharpModel.Exports.Find(e => e.Name == "i(V1)");
+            var simulation = spiceModel.Simulations.Single();
+            var export = spiceModel.Exports.Find(e => e.Name == "i(V1)");
             simulation.ExportSimulationData += (sender, args) => Console.WriteLine(export.Extract());
-            simulation.Run(spiceSharpModel.Circuit);
+            simulation.Run(spiceModel.Circuit);
         }
     }
 }    
@@ -125,9 +125,6 @@ Note: Only voltage and current expressions are supported in TABLE, VALUE
 |V (Independent Voltage Source)|[Wiki](https://github.com/SpiceSharp/SpiceSharpParser/wiki/V)|
 |W (Current Switch)|[Wiki](https://github.com/SpiceSharp/SpiceSharpParser/wiki/W)|
 |X (Subcircuit)|[Wiki](https://github.com/SpiceSharp/SpiceSharpParser/wiki/X)|
-
-## Supported by
-[<img src="jetbrains.png" width=100/>](https://www.jetbrains.com/?from=SpiceSharpParser)
 
 ## Documentation
 * API documentation is available at <https://spicesharp.github.io/SpiceSharpParser/api/index.html>.

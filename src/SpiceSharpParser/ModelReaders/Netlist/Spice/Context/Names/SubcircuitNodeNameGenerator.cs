@@ -1,5 +1,4 @@
 ﻿using SpiceSharpParser.Common;
-using SpiceSharpParser.ModelReaders.Netlist.Spice.Exceptions;
 using SpiceSharpParser.Models.Netlist.Spice.Objects;
 using System;
 using System.Collections.Generic;
@@ -37,18 +36,26 @@ namespace SpiceSharpParser.ModelReaders.Netlist.Spice.Context.Names
 
             if (SubCircuit.Pins.Count != PinInstanceNames.Count)
             {
-                throw new ReadingException($"Subcircuit: {subcircuitFullName} has wrong number of nodes");
+                throw new SpiceSharpParserException($"Subcircuit: {subcircuitFullName} has wrong number of nodes");
             }
 
             for (var i = 0; i < SubCircuit.Pins.Count; i++)
             {
-                var pinIdentifier = SubCircuit.Pins[i];
+                var pinIdentifier = SubCircuit.Pins[i].Image;
                 var pinInstanceIdentifier = PinInstanceNames[i];
                 _pinMap[pinIdentifier] = pinInstanceIdentifier;
             }
 
             IsNodeNameCaseSensitive = isNodeNameCaseSensitive;
             InitGlobals(globals);
+        }
+
+        public Dictionary<string, string> PinMap
+        {
+            get
+            {
+                return _pinMap;
+            }
         }
 
         public bool IsNodeNameCaseSensitive { get; }
@@ -182,6 +189,12 @@ namespace SpiceSharpParser.ModelReaders.Netlist.Spice.Context.Names
                         return child.Parse(restOfPath);
                     }
                 }
+            }
+
+            if (parts[0] == RootName)
+            {
+                string restOfPath = string.Join(".", parts.Skip(1));
+                return restOfPath;
             }
 
             return null;

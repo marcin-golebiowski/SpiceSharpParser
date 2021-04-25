@@ -1,8 +1,8 @@
 ﻿using SpiceSharp;
-using SpiceSharp.IntegrationMethods;
-using SpiceSharpParser.Common;
+using SpiceSharp.Simulations.IntegrationMethods;
+using SpiceSharpParser.Common.Validation;
 using SpiceSharpParser.ModelReaders.Netlist.Spice.Context;
-using SpiceSharpParser.ModelReaders.Netlist.Spice.Exceptions;
+using SpiceSharpParser.ModelReaders.Netlist.Spice.Readers.Controls.Simulations.Configurations;
 using SpiceSharpParser.Models.Netlist.Spice.Objects;
 
 namespace SpiceSharpParser.ModelReaders.Netlist.Spice.Readers.Controls
@@ -13,10 +13,10 @@ namespace SpiceSharpParser.ModelReaders.Netlist.Spice.Readers.Controls
     public class OptionsControl : BaseControl
     {
         /// <summary>
-        /// Reads <see cref="Control"/> statement and modifies the context
+        /// Reads <see cref="Control"/> statement and modifies the context.
         /// </summary>
-        /// <param name="statement">A statement to process</param>
-        /// <param name="context">A context to modify</param>
+        /// <param name="statement">A statement to process.</param>
+        /// <param name="context">A context to modify.</param>
         public override void Read(Control statement, ICircuitContext context)
         {
             foreach (var param in statement.Parameters)
@@ -39,7 +39,7 @@ namespace SpiceSharpParser.ModelReaders.Netlist.Spice.Readers.Controls
                         case "itl2":
                             context.Result.SimulationConfiguration.SweepMaxIterations = (int)context.Evaluator.EvaluateDouble(value); break;
                         case "itl4":
-                            context.Result.SimulationConfiguration.TranMaxIterations = (int)context.Evaluator.EvaluateDouble(value); break;
+                            context.Result.SimulationConfiguration.TransientConfiguration.TranMaxIterations = (int)context.Evaluator.EvaluateDouble(value); break;
                         case "itl5":
                             // TODO: ????
                             break;
@@ -55,15 +55,39 @@ namespace SpiceSharpParser.ModelReaders.Netlist.Spice.Readers.Controls
                             {
                                 case "trap":
                                 case "trapezoidal":
-                                    context.Result.SimulationConfiguration.Method = new Trapezoidal();
+                                    context.Result.SimulationConfiguration.TransientConfiguration.Type = typeof(Trapezoidal);
+                                    context.Result.SimulationConfiguration.TimeParametersFactory = (TransientConfiguration config) => new Trapezoidal()
+                                    {
+                                        StopTime = config.Final ?? 0.0,
+                                        MaxStep = config.MaxStep ?? 0.0,
+                                        InitialStep = config.Step ?? 0.0,
+                                        UseIc = config.UseIc ?? false,
+                                        AbsoluteTolerance = context.Result.SimulationConfiguration.AbsoluteTolerance ?? 1e-12,
+                                        RelativeTolerance = context.Result.SimulationConfiguration.RelTolerance ?? 1e-3,
+                                    };
                                     break;
 
                                 case "gear":
-                                    context.Result.SimulationConfiguration.Method = new Gear();
+                                    context.Result.SimulationConfiguration.TransientConfiguration.Type = typeof(Gear);
+                                    context.Result.SimulationConfiguration.TimeParametersFactory = (TransientConfiguration config) => new Gear()
+                                    {
+                                        StopTime = config.Final ?? 0.0,
+                                        MaxStep = config.MaxStep ?? 0.0,
+                                        InitialStep = config.Step ?? 0.0,
+                                        UseIc = config.UseIc ?? false,
+                                        AbsoluteTolerance = context.Result.SimulationConfiguration.AbsoluteTolerance ?? 1e-12,
+                                        RelativeTolerance = context.Result.SimulationConfiguration.RelTolerance ?? 1e-3,
+                                    };
                                     break;
 
                                 case "euler":
-                                    context.Result.SimulationConfiguration.Method = new FixedEuler();
+                                    context.Result.SimulationConfiguration.TransientConfiguration.Type = typeof(FixedEuler);
+                                    context.Result.SimulationConfiguration.TimeParametersFactory = (TransientConfiguration config) => new FixedEuler()
+                                    {
+                                        StopTime = config.Final ?? 0.0,
+                                        Step = config.Step ?? 0.0,
+                                        UseIc = config.UseIc ?? false,
+                                    };
                                     break;
                             }
 
@@ -84,7 +108,8 @@ namespace SpiceSharpParser.ModelReaders.Netlist.Spice.Readers.Controls
 
                             if (points < 4)
                             {
-                                throw new ReadingException("cdfpoints needs to be greater than 3");
+                                context.Result.Validation.Add(new ValidationEntry(ValidationEntrySource.Reader, ValidationEntryLevel.Warning, "CDFPOINTS needs to be greater than 3", statement.LineInfo));
+                                return;
                             }
 
                             context.Evaluator.GetEvaluationContext().Randomizer.CdfPoints = points;
@@ -95,7 +120,7 @@ namespace SpiceSharpParser.ModelReaders.Netlist.Spice.Readers.Controls
                             break;
 
                         default:
-                            context.Result.AddValidationException(new SpiceSharpParserException($"Unsupported option: {name}"));
+                            context.Result.Validation.Add(new ValidationEntry(ValidationEntrySource.Reader, ValidationEntryLevel.Warning, $"Unsupported option: {name}", statement.LineInfo));
                             break;
                     }
                 }
@@ -105,11 +130,6 @@ namespace SpiceSharpParser.ModelReaders.Netlist.Spice.Readers.Controls
                     if (w.Image.ToLower() == "keepopinfo")
                     {
                         context.Result.SimulationConfiguration.KeepOpInfo = true;
-                    }
-
-                    if (w.Image.ToLower() == "dynamic-resistors")
-                    {
-                        context.Result.SimulationConfiguration.DynamicResistors = true;
                     }
                 }
             }
