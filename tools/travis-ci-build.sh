@@ -6,6 +6,6 @@ dotnet ../tools/sonar/SonarScanner.MSBuild.dll begin /o:"marcin-golebiowski" /k:
 echo "Running build..."
 dotnet build
 echo "Running tests..."
-dotnet test /p:CollectCoverage=true /p:CoverletOutputFormat=\"opencover,lcov\" /p:CoverletOutput=../lcov
+dotnet test 
 echo "Executing MSBuild DLL end command..."
 dotnet ../tools/sonar/SonarScanner.MSBuild.dll end /d:sonar.login=${SONAR_TOKEN}
